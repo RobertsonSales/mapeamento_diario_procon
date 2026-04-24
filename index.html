@@ -1215,80 +1215,18 @@
 <style>
 @page {
   size: A4 landscape;
-  margin: 22mm 14mm 18mm 14mm;
-
-  @top-left {
-    content: "PROCON CARIOCA";
-    font-family: 'Segoe UI', Arial, sans-serif;
-    font-size: 9px;
-    font-weight: 800;
-    color: #0066cc;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    border-bottom: 2.5px solid #0066cc;
-    padding-bottom: 5px;
-    width: 100%;
-  }
-
-  @top-center {
-    content: "Relatório de Pesquisa de Mapeamento do Consumidor";
-    font-family: 'Segoe UI', Arial, sans-serif;
-    font-size: 9px;
-    font-weight: 600;
-    color: #334155;
-    letter-spacing: 0.02em;
-    border-bottom: 2.5px solid #0066cc;
-    padding-bottom: 5px;
-    width: 100%;
-    text-align: center;
-  }
-
-  @top-right {
-    content: "${now}";
-    font-family: 'Segoe UI', Arial, sans-serif;
-    font-size: 9px;
-    font-weight: 600;
-    color: #64748b;
-    border-bottom: 2.5px solid #0066cc;
-    padding-bottom: 5px;
-    width: 100%;
-    text-align: right;
-  }
-
-  @bottom-left {
-    content: "Secretaria Municipal de Defesa do Consumidor — Prefeitura da Cidade do Rio de Janeiro";
-    font-family: 'Segoe UI', Arial, sans-serif;
-    font-size: 7.5px;
-    font-weight: 500;
-    color: #94a3b8;
-    border-top: 0.5px solid #cbd5e1;
-    padding-top: 5px;
-    width: 100%;
-  }
+  margin: 24mm 12mm 18mm 12mm;
 
   @bottom-center {
-    content: "Página " counter(page) " de " counter(pages);
+    content: counter(page) " / " counter(pages);
     font-family: 'Segoe UI', Arial, sans-serif;
-    font-size: 8px;
+    font-size: 8.5px;
     font-weight: 700;
     color: #475569;
-    border-top: 0.5px solid #cbd5e1;
-    padding-top: 5px;
-    width: 100%;
-    text-align: center;
-  }
-
-  @bottom-right {
-    content: "Documento confidencial — Uso interno";
-    font-family: 'Segoe UI', Arial, sans-serif;
-    font-size: 7.5px;
-    font-weight: 500;
-    font-style: italic;
-    color: #94a3b8;
-    border-top: 0.5px solid #cbd5e1;
-    padding-top: 5px;
-    width: 100%;
-    text-align: right;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 100px;
+    padding: 3px 14px;
   }
 }
 
@@ -1302,6 +1240,131 @@ body {
   print-color-adjust: exact;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   HEADER FIXO — repete em todas as páginas
+   ═══════════════════════════════════════════════════════════════ */
+.header-fixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 20mm;
+  background: linear-gradient(135deg, #004c99 0%, #0066cc 60%, #3b82f6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14mm;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+.header-fixed::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 50%, #f59e0b 100%);
+}
+.header-fixed .brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.header-fixed .brand-icon {
+  font-size: 18px;
+  background: rgba(255,255,255,0.15);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.header-fixed .brand-text {
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+.header-fixed .brand-text span {
+  display: block;
+  font-size: 8px;
+  font-weight: 400;
+  opacity: 0.85;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  margin-top: 1px;
+}
+.header-fixed .doc-title {
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 0.02em;
+  opacity: 0.95;
+  flex: 1;
+  padding: 0 20px;
+}
+.header-fixed .doc-meta {
+  text-align: right;
+  color: rgba(255,255,255,0.9);
+  font-size: 8px;
+  line-height: 1.4;
+}
+.header-fixed .doc-meta strong {
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FOOTER FIXO — repete em todas as páginas
+   ═══════════════════════════════════════════════════════════════ */
+.footer-fixed {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 14mm;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14mm;
+  z-index: 1000;
+}
+.footer-fixed::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background: linear-gradient(90deg, #0066cc 0%, #3b82f6 50%, #0066cc 100%);
+}
+.footer-fixed .institution {
+  font-size: 7.5px;
+  color: #64748b;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.footer-fixed .institution strong {
+  color: #334155;
+  font-weight: 700;
+}
+.footer-fixed .confidential {
+  font-size: 7.5px;
+  color: #94a3b8;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
 /* ===== COVER PAGE ===== */
 .cover-page {
   page-break-after: always;
@@ -1313,14 +1376,15 @@ body {
   min-height: 100vh;
   text-align: center;
   padding: 40px;
+  margin-top: -24mm;
 }
-.cover-icon { font-size: 48px; margin-bottom: 16px; }
-.cover-title { font-size: 28px; font-weight: 800; color: #0066cc; letter-spacing: -0.02em; margin-bottom: 6px; }
-.cover-subtitle { font-size: 14px; color: #64748b; margin-bottom: 32px; }
-.cover-meta { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px 32px; display: inline-block; }
-.cover-meta-row { font-size: 12px; color: #475569; margin: 4px 0; }
+.cover-icon { font-size: 52px; margin-bottom: 18px; }
+.cover-title { font-size: 30px; font-weight: 800; color: #0066cc; letter-spacing: -0.02em; margin-bottom: 6px; }
+.cover-subtitle { font-size: 14px; color: #64748b; margin-bottom: 36px; font-weight: 500; }
+.cover-meta { background: linear-gradient(135deg, #f8fafc 0%, #fff 100%); border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px 36px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
+.cover-meta-row { font-size: 12px; color: #475569; margin: 5px 0; }
 .cover-meta-row strong { color: #0f172a; }
-.cover-date { margin-top: 40px; font-size: 11px; color: #94a3b8; }
+.cover-date { margin-top: 44px; font-size: 11px; color: #94a3b8; font-weight: 500; letter-spacing: 0.03em; }
 
 /* ===== CONTENT PAGES ===== */
 .content-page { padding: 0; }
@@ -1485,18 +1549,6 @@ tr {
 }
 tr:nth-child(even) td { background: #f8fafc; }
 
-/* ===== FOOTER ===== */
-.footer-pdf {
-  margin-top: 12px;
-  text-align: center;
-  font-size: 8px;
-  color: #94a3b8;
-  border-top: 1px solid #e2e8f0;
-  padding-top: 6px;
-  break-inside: avoid;
-  page-break-inside: avoid;
-}
-
 /* ===== PRINT SAFEGUARDS ===== */
 @media print {
   .cover-page { page-break-after: always; }
@@ -1507,10 +1559,22 @@ tr:nth-child(even) td { background: #f8fafc; }
   tr { page-break-inside: avoid; }
   .section-title-pdf { page-break-after: avoid; }
   .chart-title { page-break-after: avoid; }
-}
-</style>
+}</style>
 </head>
 <body>
+
+<!-- HEADER FIXO (repete em todas as páginas) -->
+<div class="header-fixed">
+  <div class="brand">
+    <div class="brand-icon">🛡️</div>
+    <div class="brand-text">Procon Carioca<span>Secretaria Municipal de Defesa do Consumidor</span></div>
+  </div>
+  <div class="doc-title">Relatório de Pesquisa de Mapeamento do Consumidor</div>
+  <div class="doc-meta">
+    <div><strong>${total}</strong> pesquisas</div>
+    <div>${periodoText}</div>
+  </div>
+</div>
 
 <!-- CAPA -->
 <div class="cover-page">
