@@ -969,13 +969,25 @@
 
     // Parser CSV
     function parseCSV(csvText) {
-      const lines = csvText.trim().split('\n');
+      const normalizedText = csvText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+      const lines = normalizedText.split('
+').filter(line => line.trim());
       if (lines.length < 2) return [];
-      const headers = parseCSVLine(lines[0]);
+
+      const rawHeaders = parseCSVLine(lines[0]).map(h => h.trim());
+      const headerCount = {};
+      const headers = rawHeaders.map(header => {
+        const base = header || 'Coluna';
+        const count = headerCount[base] || 0;
+        headerCount[base] = count + 1;
+        return count === 0 ? base : `${base}.${count}`;
+      });
+
       const records = [];
       for (let i = 1; i < lines.length; i++) {
         const values = parseCSVLine(lines[i]);
         if (values.length < headers.length) continue;
+
         const record = {};
         headers.forEach((h, idx) => {
           let val = values[idx] || '';
@@ -983,7 +995,7 @@
           if (val.startsWith('"') && val.endsWith('"')) {
             val = val.slice(1, -1).replace(/""/g, '"');
           }
-          record[h.trim()] = val;
+          record[h] = val;
         });
         records.push(record);
       }
@@ -1092,7 +1104,7 @@
     // EXPORTAR PDF (A4 Paisagem)
     // ═══════════════════════════════════════════════════════════════
     function exportarPDF() {
-      if (!filteredData || filteredData.length === 0) {
+      if (!filteredData.length) {
         alert('Nenhum dado filtrado para exportar.');
         return;
       }
@@ -1109,28 +1121,25 @@
       const nomeSPC = countBy(filteredData, 'Possui nome no SCPC, Serasa ou semelhantes?', 'Sim');
       const emprestimo = countBy(filteredData, 'Possui empréstimo consignado?', 'Sim');
       const compraInternet = countBy(filteredData, 'Faz compras pela internet?', 'Sim');
-      const salarioSim = countBy(filteredData, 'Seu salário cobre suas despesas?', 'Sim');
-      const dividaSim = countBy(filteredData, 'Fica dívida para o mês seguinte?', 'Sim');
 
-      // Collect chart images
       const chartImages = {};
-      ['chartConhecimento','chartRadarConhecimento','chartFinanceiro','chartDividas',
-       'chartBancos','chartOperadoras','chartProvedoras','chartProblemasSetor',
-       'chartConcessionarias','chartAreas','chartStatus'].forEach(id => {
+      [
+        'chartConhecimento','chartFinanceiro','chartOperadoras','chartConcessionarias','chartProblemasSetor',
+        'chartRadarConhecimento','chartDividas','chartBancos','chartProvedoras','chartAreas','chartStatus'
+      ].forEach(id => {
         const canvas = document.getElementById(id);
         if (canvas) chartImages[id] = canvas.toDataURL('image/png');
       });
 
-      // Problems data
       const problemas = {};
       const camposProb = [
         { key: 'Se sim, qual tipo de problema?', label: 'Loja Online' },
         { key: 'Se sim,  Qual tipo de problema?', label: 'Banco' },
-        { key: 'Se sim, qual tipo de problema?', label: 'Operadora' },
-        { key: 'Se sim, qual tipo de problema?.1', label: 'Provedora Internet' },
-        { key: 'Se sim, qual tipo de problema?.2', label: 'Água' },
-        { key: 'Se sim, qual tipo de problema?.3', label: 'Energia' },
-        { key: 'Se sim, qual tipo de problema?.4', label: 'Gás' },
+        { key: 'Se sim, qual tipo de problema?.1', label: 'Operadora' },
+        { key: 'Se sim, qual tipo de problema?.2', label: 'Provedora Internet' },
+        { key: 'Se sim, qual tipo de problema?.3', label: 'Água' },
+        { key: 'Se sim, qual tipo de problema?.4', label: 'Energia' },
+        { key: 'Se sim, qual tipo de problema?.5', label: 'Gás' },
       ];
       camposProb.forEach(c => {
         filteredData.forEach(d => {
@@ -1143,59 +1152,96 @@
       });
       const sortedProbs = Object.entries(problemas).sort((a, b) => b[1] - a[1]);
 
-      // Table rows
       const pdfTableCols = [
-        { key: 'Nome completo', label: 'Nome' },
-        { key: 'Nome do Agente', label: 'Agente' },
-        { key: 'Sala do Consumidor', label: 'Sala' },
-        { key: 'Área de mapeamento', label: 'Área' },
-        { key: 'Data da pesquisa', label: 'Data' },
-        { key: 'Conhece seus direitos em Defesa do Consumidor?', label: 'Direitos' },
-        { key: 'Conhece  Código de Defesa do Consumidor (CDC)?', label: 'CDC' },
-        { key: 'Conhece o Procon Municipal (Carioca)?', label: 'Procon' },
-        { key: 'Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo?', label: 'Ajuda' },
-        { key: 'Utiliza a internet?', label: 'Internet' },
-        { key: 'Faz compras pela internet?', label: 'Compras' },
-        { key: 'Possui conta bancária?', label: 'Banco' },
-        { key: 'Já teve problema com ele?', label: 'Prob.Banco' },
-        { key: 'Possui empréstimo consignado?', label: 'Emprést.' },
-        { key: 'Seu salário cobre suas despesas?', label: 'Salário' },
-        { key: 'Possui outras dívidas?', label: 'Dívidas' },
-        { key: 'Possui nome no SCPC, Serasa ou semelhantes?', label: 'SPC/Serasa' },
-        { key: 'Qual serviço de telefonia utiliza?', label: 'Telefonia' },
-        { key: 'Já teve problema com essa Operadora?', label: 'Prob.Tel' },
-        { key: 'Qual prestadora de internet utiliza?', label: 'Internet' },
-        { key: 'Já teve problema com essa  provedora?', label: 'Prob.Net' },
-        { key: 'Já teve problema com a concessionária?', label: 'Prob.Água' },
-        { key: 'Já teve problema com a concessionária de energia elétrica?', label: 'Prob.Energia' },
-        { key: 'Teve algum problema com o serviço de gás?', label: 'Prob.Gás' },
-        { key: 'Coluna 48', label: 'Status' },
+        { key: 'Nome completo', label: 'Nome', kind: 'text' },
+        { key: 'Nome do Agente', label: 'Agente', kind: 'text' },
+        { key: 'Sala do Consumidor', label: 'Sala', kind: 'text' },
+        { key: 'Área de mapeamento', label: 'Área', kind: 'text' },
+        { key: 'Data da pesquisa', label: 'Data', kind: 'text' },
+        { key: 'Conhece seus direitos em Defesa do Consumidor?', label: 'Direitos', kind: 'tag' },
+        { key: 'Conhece  Código de Defesa do Consumidor (CDC)?', label: 'CDC', kind: 'tag' },
+        { key: 'Conhece o Procon Municipal (Carioca)?', label: 'Procon', kind: 'tag' },
+        { key: 'Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo?', label: 'Ajuda', kind: 'tag' },
+        { key: 'Faz compras pela internet?', label: 'Compras', kind: 'tag' },
+        { key: 'Possui conta bancária?', label: 'Conta', kind: 'tag' },
+        { key: 'Possui outras dívidas?', label: 'Dívidas', kind: 'tag' },
+        { key: 'Possui nome no SCPC, Serasa ou semelhantes?', label: 'SPC/Serasa', kind: 'tag' },
+        { key: 'Qual serviço de telefonia utiliza?', label: 'Telefonia', kind: 'text' },
+        { key: 'Qual prestadora de internet utiliza?', label: 'Internet', kind: 'text' },
+        { key: 'Já teve problema com a concessionária?', label: 'Prob. Água', kind: 'tag' },
+        { key: 'Já teve problema com a concessionária de energia elétrica?', label: 'Prob. Energia', kind: 'tag' },
+        { key: 'Coluna 48', label: 'Status', kind: 'status' },
       ];
 
-      const tableRows = filteredData.map(row => {
-        return '<tr>' + pdfTableCols.map(col => {
-          let val = row[col.key] || '';
-          return `<td>${val}</td>`;
-        }).join('') + '</tr>';
-      }).join('');
+      const escapeHtml = (value) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 
-      const tableHeader = '<tr>' + pdfTableCols.map(col => `<th>${col.label}</th>`).join('') + '</tr>';
+      const chunkArray = (items, size) => {
+        const chunks = [];
+        for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+        return chunks;
+      };
 
-      // Build problems HTML
+      const renderPdfValue = (value, kind) => {
+        const raw = (value || '').toString().trim();
+        if (!raw) return '<span class="pill neutral">—</span>';
+        const safe = escapeHtml(raw);
+
+        if (kind === 'status') {
+          const cls = raw === 'Concluída' ? 'status-done' : raw === 'Parcialmente concluída' ? 'status-partial' : 'status-info';
+          return `<span class="pill ${cls}">${safe}</span>`;
+        }
+
+        if (kind === 'tag') {
+          const positiveValues = ['Sim', 'Conheço', 'Sei'];
+          const negativeValues = ['Não', 'Não conheço', 'Não sei'];
+          const cls = positiveValues.includes(raw) ? 'positive' : negativeValues.includes(raw) ? 'negative' : 'neutral';
+          return `<span class="pill ${cls}">${safe}</span>`;
+        }
+
+        return safe;
+      };
+
+      const buildTableHtml = (rows, chunkIndex, totalChunks) => {
+        const tableHeader = '<tr>' + pdfTableCols.map(col => `<th>${escapeHtml(col.label)}</th>`).join('') + '</tr>';
+        const tableRows = rows.map(row => {
+          return '<tr>' + pdfTableCols.map(col => `<td>${renderPdfValue(row[col.key], col.kind)}</td>`).join('') + '</tr>';
+        }).join('');
+
+        const titleSuffix = totalChunks > 1 ? ` — Parte ${chunkIndex + 1} de ${totalChunks}` : '';
+        return {
+          title: `📋 Registros Detalhados${titleSuffix}`,
+          note: 'Tabela resumida para impressão em A4. A visualização completa permanece no dashboard interativo.',
+          content: `
+            <div class="table-wrap-pdf">
+              <table>
+                <thead>${tableHeader}</thead>
+                <tbody>${tableRows}</tbody>
+              </table>
+            </div>
+          `
+        };
+      };
+
       let problemsHtml = '';
       if (sortedProbs.length === 0) {
-        problemsHtml = '<p style="color:#64748b; font-size:10px;">Nenhum problema reportado nos registros filtrados.</p>';
+        problemsHtml = '<div class="empty-note">Nenhum problema reportado nos registros filtrados.</div>';
       } else {
         problemsHtml = '<div class="problems-grid-pdf">' +
-          sortedProbs.map(([text, count]) => {
-            return `<div class="problem-item-pdf">
-              <span class="problem-text-pdf">${text}</span>
+          sortedProbs.map(([text, count]) => `
+            <div class="problem-item-pdf">
+              <span class="problem-text-pdf">${escapeHtml(text)}</span>
               <span class="problem-count-pdf">${count}</span>
-            </div>`;
-          }).join('') + '</div>';
+            </div>
+          `).join('') + '</div>';
       }
 
-      const now = new Date().toLocaleDateString('pt-BR');
+      const nowDate = new Date().toLocaleDateString('pt-BR');
+      const nowDateTime = new Date().toLocaleString('pt-BR');
       const periodoText = (() => {
         const di = document.getElementById('filterDataInicio').value;
         const df = document.getElementById('filterDataFim').value;
@@ -1205,482 +1251,549 @@
         return 'Período: Todas as datas';
       })();
 
+      const sourceUrl = 'https://mapeamento-diario-procon.vercel.app/';
+      const tableChunks = chunkArray(filteredData, 12);
+      const pages = [
+        {
+          kind: 'cover',
+          title: 'Relatório de Pesquisa de Mapeamento do Consumidor',
+          content: `
+            <div class="cover-icon">🛡️</div>
+            <div class="cover-kicker">PROCON CARIOCA</div>
+            <div class="cover-title">Relatório de Pesquisa de Mapeamento do Consumidor</div>
+            <div class="cover-subtitle">Secretaria Municipal de Defesa do Consumidor</div>
+            <div class="cover-meta">
+              <div class="cover-meta-row"><strong>${total}</strong> pesquisas filtradas</div>
+              <div class="cover-meta-row">${escapeHtml(periodoText)}</div>
+              <div class="cover-meta-row">Gerado em: <strong>${escapeHtml(nowDateTime)}</strong></div>
+              <div class="cover-meta-row">Origem: <strong>${escapeHtml(sourceUrl)}</strong></div>
+            </div>
+          `
+        },
+        {
+          title: '📊 Resumo Executivo',
+          note: `${total} pesquisas filtradas • ${periodoText}`,
+          content: `
+            <div class="section-block">
+              <div class="kpi-grid-pdf">
+                <div class="kpi-card-pdf blue"><div class="label">Total Pesquisas</div><div class="value">${total}</div><div class="sub">registros</div></div>
+                <div class="kpi-card-pdf green"><div class="label">Conhece Direitos</div><div class="value">${pct(conheceDireitos, total)}%</div><div class="sub">${conheceDireitos} de ${total}</div></div>
+                <div class="kpi-card-pdf green"><div class="label">Conhece CDC</div><div class="value">${pct(conheceCDC, total)}%</div><div class="sub">${conheceCDC} de ${total}</div></div>
+                <div class="kpi-card-pdf green"><div class="label">Conhece Procon</div><div class="value">${pct(conheceProcon, total)}%</div><div class="sub">${conheceProcon} de ${total}</div></div>
+                <div class="kpi-card-pdf purple"><div class="label">Sabe Pedir Ajuda</div><div class="value">${pct(sabePedir, total)}%</div><div class="sub">${sabePedir} de ${total}</div></div>
+                <div class="kpi-card-pdf blue"><div class="label">Compra Internet</div><div class="value">${pct(compraInternet, total)}%</div><div class="sub">${compraInternet} de ${total}</div></div>
+                <div class="kpi-card-pdf red"><div class="label">Prob. Bancários</div><div class="value">${problemaBanco}</div><div class="sub">reportados</div></div>
+                <div class="kpi-card-pdf orange"><div class="label">Prob. Telecom</div><div class="value">${problemaOperadora}</div><div class="sub">operadoras</div></div>
+                <div class="kpi-card-pdf orange"><div class="label">Prob. Internet</div><div class="value">${problemaProvedora}</div><div class="sub">provedoras</div></div>
+                <div class="kpi-card-pdf red"><div class="label">Com Dívidas</div><div class="value">${temDividas}</div><div class="sub">consumidores</div></div>
+                <div class="kpi-card-pdf red"><div class="label">SPC/Serasa</div><div class="value">${nomeSPC}</div><div class="sub">negativados</div></div>
+                <div class="kpi-card-pdf gray"><div class="label">Empréstimo Consig.</div><div class="value">${emprestimo}</div><div class="sub">possuem</div></div>
+              </div>
+            </div>
+            <div class="section-block">
+              <div class="section-title-pdf">🎓 Conhecimento do Consumidor</div>
+              <div class="two-col-pdf">
+                <div class="chart-card-pdf"><div class="chart-title">Nível de Conhecimento dos Direitos</div><img src="${chartImages['chartConhecimento'] || ''}" alt="Gráfico de conhecimento dos direitos"></div>
+                <div class="chart-card-pdf"><div class="chart-title">Distribuição do Conhecimento (Radar)</div><img src="${chartImages['chartRadarConhecimento'] || ''}" alt="Gráfico radar de conhecimento"></div>
+              </div>
+            </div>
+          `
+        },
+        {
+          title: '💰 Situação Financeira e Telecomunicações',
+          note: 'Comparativos consolidados dos principais serviços e indicadores financeiros.',
+          content: `
+            <div class="section-block">
+              <div class="section-title-pdf">💰 Situação Financeira</div>
+              <div class="three-col-pdf">
+                <div class="chart-card-pdf"><div class="chart-title">Perfil Financeiro</div><img src="${chartImages['chartFinanceiro'] || ''}" alt="Perfil financeiro"></div>
+                <div class="chart-card-pdf"><div class="chart-title">Dívidas e Endividamento</div><img src="${chartImages['chartDividas'] || ''}" alt="Dívidas e endividamento"></div>
+                <div class="chart-card-pdf"><div class="chart-title">Bancos Utilizados</div><img src="${chartImages['chartBancos'] || ''}" alt="Bancos utilizados"></div>
+              </div>
+            </div>
+            <div class="section-block">
+              <div class="section-title-pdf">📡 Serviços e Telecomunicações</div>
+              <div class="three-col-pdf">
+                <div class="chart-card-pdf"><div class="chart-title">Operadoras de Telefonia</div><img src="${chartImages['chartOperadoras'] || ''}" alt="Operadoras de telefonia"></div>
+                <div class="chart-card-pdf"><div class="chart-title">Provedoras de Internet</div><img src="${chartImages['chartProvedoras'] || ''}" alt="Provedoras de internet"></div>
+                <div class="chart-card-pdf"><div class="chart-title">Problemas por Setor</div><img src="${chartImages['chartProblemasSetor'] || ''}" alt="Problemas por setor"></div>
+              </div>
+            </div>
+          `
+        },
+        {
+          title: '⚡ Serviços Públicos e Problemas Reportados',
+          note: 'Página dedicada às concessionárias e aos principais problemas informados.',
+          content: `
+            <div class="section-block">
+              <div class="section-title-pdf">⚡ Concessionárias de Serviços Públicos</div>
+              <div class="three-col-pdf">
+                <div class="chart-card-pdf"><div class="chart-title">Problemas com Concessionárias</div><img src="${chartImages['chartConcessionarias'] || ''}" alt="Problemas com concessionárias"></div>
+                <div class="chart-card-pdf"><div class="chart-title">Distribuição por Área</div><img src="${chartImages['chartAreas'] || ''}" alt="Distribuição por área"></div>
+                <div class="chart-card-pdf"><div class="chart-title">Status das Pesquisas</div><img src="${chartImages['chartStatus'] || ''}" alt="Status das pesquisas"></div>
+              </div>
+            </div>
+            <div class="section-block">
+              <div class="section-title-pdf">⚠️ Tipos de Problemas Reportados</div>
+              <div class="problems-section-pdf">${problemsHtml}</div>
+            </div>
+          `
+        }
+      ];
+
+      tableChunks.forEach((rows, index) => {
+        pages.push(buildTableHtml(rows, index, tableChunks.length));
+      });
+
+      const totalPages = pages.length;
+      const buildHeader = (pageNumber, pageTitle) => `
+        <div class="page-header">
+          <div class="page-header-top">
+            <div class="brand">
+              <div class="brand-icon">🛡️</div>
+              <div class="brand-text">Procon Carioca<span>Secretaria Municipal de Defesa do Consumidor</span></div>
+            </div>
+            <div class="page-meta">
+              <div><strong>${total}</strong> pesquisas</div>
+              <div>${escapeHtml(periodoText)}</div>
+              <div>Página <strong>${pageNumber}</strong> de <strong>${totalPages}</strong></div>
+            </div>
+          </div>
+          <div class="document-title">${escapeHtml(pageTitle)}</div>
+        </div>
+      `;
+
+      const buildFooter = () => `
+        <div class="page-footer">
+          <span>Secretaria Municipal de Defesa do Consumidor — Prefeitura da Cidade do Rio de Janeiro</span>
+          <span>Gerado em ${escapeHtml(nowDateTime)}</span>
+        </div>
+      `;
+
+      const pagesHtml = pages.map((page, index) => {
+        const pageNumber = index + 1;
+        if (page.kind === 'cover') {
+          return `
+            <section class="pdf-page cover-page">
+              <div class="cover-shell">
+                ${page.content}
+              </div>
+              ${buildFooter()}
+            </section>
+          `;
+        }
+
+        return `
+          <section class="pdf-page">
+            ${buildHeader(pageNumber, page.title)}
+            <div class="page-body">
+              <div class="page-note">${escapeHtml(page.note || '')}</div>
+              ${page.content}
+            </div>
+            ${buildFooter()}
+          </section>
+        `;
+      }).join('');
+
       const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        alert('Não foi possível abrir a janela de impressão. Verifique se o navegador bloqueou pop-ups.');
+        return;
+      }
+
+      printWindow.document.open();
       printWindow.document.write(`
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Relatório Procon Carioca - ${now}</title>
+<title>Relatório Procon Carioca - ${nowDate}</title>
 <style>
 @page {
   size: A4 landscape;
-  margin: 24mm 12mm 18mm 12mm;
-
-  @bottom-center {
-    content: counter(page) " / " counter(pages);
-    font-family: 'Segoe UI', Arial, sans-serif;
-    font-size: 8.5px;
-    font-weight: 700;
-    color: #475569;
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 100px;
-    padding: 3px 14px;
-  }
+  margin: 10mm 12mm 12mm 12mm;
 }
-
-* { margin:0; padding:0; box-sizing:border-box; }
-body {
-  font-family: 'Segoe UI', Arial, sans-serif;
-  font-size: 10px;
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  background: #ffffff;
   color: #1e293b;
-  line-height:1.45;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
-
-/* ═══════════════════════════════════════════════════════════════
-   HEADER FIXO — repete em todas as páginas
-   ═══════════════════════════════════════════════════════════════ */
-.header-fixed {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 20mm;
-  background: linear-gradient(135deg, #004c99 0%, #0066cc 60%, #3b82f6 100%);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 14mm;
-  z-index: 1000;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+body {
+  font-size: 10px;
+  line-height: 1.4;
 }
-.header-fixed::after {
+.pdf-page {
+  page-break-after: always;
+  break-after: page;
+  min-height: 184mm;
+  display: flex;
+  flex-direction: column;
+}
+.pdf-page:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
+.page-header {
+  background: linear-gradient(135deg, #004c99 0%, #0066cc 65%, #3b82f6 100%);
+  color: #fff;
+  border-radius: 12px;
+  padding: 8mm 10mm 6mm;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.12);
+}
+.page-header::after {
   content: '';
   position: absolute;
-  bottom: 0;
   left: 0;
   right: 0;
+  bottom: 0;
   height: 3px;
   background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 50%, #f59e0b 100%);
 }
-.header-fixed .brand {
+.page-header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
-.header-fixed .brand-icon {
-  font-size: 18px;
-  background: rgba(255,255,255,0.15);
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
+.brand-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.18);
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(4px);
+  font-size: 18px;
 }
-.header-fixed .brand-text {
-  color: #fff;
+.brand-text {
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.06em;
   text-transform: uppercase;
+  letter-spacing: 0.05em;
   line-height: 1.2;
 }
-.header-fixed .brand-text span {
+.brand-text span {
   display: block;
+  margin-top: 2px;
   font-size: 8px;
-  font-weight: 400;
-  opacity: 0.85;
-  letter-spacing: 0.04em;
-  text-transform: none;
-  margin-top: 1px;
-}
-.header-fixed .doc-title {
-  color: #fff;
-  font-size: 10.5px;
-  font-weight: 600;
-  text-align: center;
+  font-weight: 500;
   letter-spacing: 0.02em;
-  opacity: 0.95;
-  flex: 1;
-  padding: 0 20px;
+  text-transform: none;
+  opacity: 0.9;
 }
-.header-fixed .doc-meta {
+.page-meta {
   text-align: right;
-  color: rgba(255,255,255,0.9);
   font-size: 8px;
-  line-height: 1.4;
+  line-height: 1.45;
 }
-.header-fixed .doc-meta strong {
-  color: #fff;
-  font-size: 9px;
-  font-weight: 700;
+.page-meta strong { color: #fff; }
+.document-title {
+  margin-top: 6mm;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
-
-/* ═══════════════════════════════════════════════════════════════
-   FOOTER FIXO — repete em todas as páginas
-   ═══════════════════════════════════════════════════════════════ */
-.footer-fixed {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 14mm;
-  background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
+.page-body {
+  flex: 1;
+  padding-top: 6mm;
+}
+.page-note {
+  font-size: 8px;
+  color: #64748b;
+  margin-bottom: 4mm;
+}
+.page-footer {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 0 14mm;
-  z-index: 1000;
-}
-.footer-fixed::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2.5px;
-  background: linear-gradient(90deg, #0066cc 0%, #3b82f6 50%, #0066cc 100%);
-}
-.footer-fixed .institution {
+  align-items: center;
+  gap: 16px;
+  margin-top: 6mm;
+  padding-top: 3mm;
+  border-top: 1px solid #e2e8f0;
   font-size: 7.5px;
   color: #64748b;
-  font-weight: 500;
-  letter-spacing: 0.02em;
 }
-.footer-fixed .institution strong {
-  color: #334155;
-  font-weight: 700;
-}
-.footer-fixed .confidential {
-  font-size: 7.5px;
-  color: #94a3b8;
-  font-style: italic;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-}
-
-/* ===== COVER PAGE ===== */
 .cover-page {
-  page-break-after: always;
-  break-after: page;
+  justify-content: space-between;
+}
+.cover-shell {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  min-height: 100vh;
+  justify-content: center;
   text-align: center;
-  padding: 40px;
-  margin-top: -24mm;
+  padding: 8mm 12mm;
+  background: radial-gradient(circle at top, #eff6ff 0%, #ffffff 55%);
+  border: 1px solid #dbeafe;
+  border-radius: 18px;
 }
-.cover-icon { font-size: 52px; margin-bottom: 18px; }
-.cover-title { font-size: 30px; font-weight: 800; color: #0066cc; letter-spacing: -0.02em; margin-bottom: 6px; }
-.cover-subtitle { font-size: 14px; color: #64748b; margin-bottom: 36px; font-weight: 500; }
-.cover-meta { background: linear-gradient(135deg, #f8fafc 0%, #fff 100%); border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px 36px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
-.cover-meta-row { font-size: 12px; color: #475569; margin: 5px 0; }
+.cover-icon {
+  font-size: 58px;
+  margin-bottom: 10px;
+}
+.cover-kicker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+}
+.cover-title {
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 800;
+  color: #0f172a;
+  max-width: 760px;
+}
+.cover-subtitle {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #475569;
+}
+.cover-meta {
+  margin-top: 24px;
+  padding: 16px 22px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+}
+.cover-meta-row {
+  font-size: 11px;
+  color: #475569;
+  margin: 4px 0;
+}
 .cover-meta-row strong { color: #0f172a; }
-.cover-date { margin-top: 44px; font-size: 11px; color: #94a3b8; font-weight: 500; letter-spacing: 0.03em; }
-
-/* ===== CONTENT PAGES ===== */
-.content-page { padding: 0; }
-
-.section-pdf {
-  margin-bottom: 18px;
+.section-block {
+  margin-bottom: 7mm;
   break-inside: avoid;
   page-break-inside: avoid;
 }
 .section-title-pdf {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 800;
   color: #0f172a;
-  margin-bottom: 10px;
-  padding-bottom: 5px;
+  margin-bottom: 3mm;
+  padding-bottom: 2mm;
   border-bottom: 2px solid #e2e8f0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  break-after: avoid;
-  page-break-after: avoid;
 }
-
-/* ===== KPIs ===== */
 .kpi-grid-pdf {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
-  margin-bottom: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
 }
 .kpi-card-pdf {
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 10px 8px;
+  border-radius: 10px;
+  padding: 8px 7px;
   text-align: center;
   break-inside: avoid;
   page-break-inside: avoid;
 }
-.kpi-card-pdf .label { font-size: 7.5px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 4px; }
-.kpi-card-pdf .value { font-size: 17px; font-weight: 800; color: #0f172a; }
-.kpi-card-pdf .sub { font-size: 7.5px; color: #94a3b8; margin-top: 2px; }
+.kpi-card-pdf .label {
+  font-size: 7.2px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.kpi-card-pdf .value {
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+}
+.kpi-card-pdf .sub {
+  margin-top: 2px;
+  font-size: 7.2px;
+  color: #94a3b8;
+}
 .kpi-card-pdf.blue { border-top: 3px solid #0066cc; }
 .kpi-card-pdf.green { border-top: 3px solid #10b981; }
 .kpi-card-pdf.red { border-top: 3px solid #ef4444; }
 .kpi-card-pdf.orange { border-top: 3px solid #f59e0b; }
 .kpi-card-pdf.purple { border-top: 3px solid #8b5cf6; }
 .kpi-card-pdf.gray { border-top: 3px solid #64748b; }
-
-/* ===== CHARTS ===== */
-.charts-grid-pdf {
+.two-col-pdf, .three-col-pdf {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 8px;
 }
+.two-col-pdf { grid-template-columns: repeat(2, 1fr); }
+.three-col-pdf { grid-template-columns: repeat(3, 1fr); }
 .chart-card-pdf {
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 10px;
+  border-radius: 10px;
+  padding: 8px;
   break-inside: avoid;
   page-break-inside: avoid;
 }
-.chart-card-pdf .chart-title {
-  font-size: 10px;
+.chart-title {
+  font-size: 9px;
   font-weight: 700;
   color: #334155;
   margin-bottom: 6px;
   text-align: center;
-  break-after: avoid;
-  page-break-after: avoid;
 }
 .chart-card-pdf img {
-  width: 100%;
-  height: 150px;
-  object-fit: contain;
   display: block;
+  width: 100%;
+  height: 110px;
+  object-fit: contain;
 }
-.two-col-pdf { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.three-col-pdf { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-
-/* ===== PROBLEMS ===== */
 .problems-section-pdf {
-  background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 10px;
-  break-inside: avoid;
-  page-break-inside: avoid;
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px;
 }
 .problems-grid-pdf {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 6px;
 }
 .problem-item-pdf {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 9.5px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  break-inside: avoid;
-  page-break-inside: avoid;
-}
-.problem-text-pdf { color: #334155; font-weight: 500; }
-.problem-count-pdf {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 100px;
-  padding: 1px 8px;
-  font-weight: 700;
-  color: #0f172a;
-  font-size: 9.5px;
-  flex-shrink: 0;
-  margin-left: 6px;
-}
-
-/* ===== TABLE ===== */
-.table-wrap-pdf {
-  background: #fff;
+  gap: 8px;
+  padding: 6px 8px;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  overflow: hidden;
-  break-inside: auto;
-  page-break-inside: auto;
+  background: #f8fafc;
 }
-.table-scroll-pdf {
-  overflow-x: auto;
-  max-height: 320px;
-  overflow-y: auto;
+.problem-text-pdf {
+  color: #334155;
+  font-size: 8.2px;
+  font-weight: 600;
+}
+.problem-count-pdf {
+  min-width: 18px;
+  text-align: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  font-size: 8px;
+  font-weight: 800;
+  color: #0f172a;
+}
+.empty-note {
+  padding: 10px 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  font-size: 8.5px;
+  color: #64748b;
+  background: #f8fafc;
+}
+.table-wrap-pdf {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
 }
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 7.5px;
+  table-layout: fixed;
+  font-size: 6.5px;
 }
 thead {
   display: table-header-group;
 }
+th, td {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 4px 4px;
+  text-align: left;
+  vertical-align: top;
+  word-break: break-word;
+  white-space: normal;
+}
 th {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 6.2px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+tbody tr:nth-child(even) td {
+  background: #fcfdff;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 100%;
+  padding: 2px 4px;
+  border-radius: 999px;
+  font-size: 6.1px;
+  font-weight: 700;
+  text-align: center;
+  border: 1px solid transparent;
+}
+.pill.positive {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+.pill.negative {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+.pill.neutral {
   background: #f1f5f9;
   color: #475569;
-  font-weight: 600;
-  text-align: left;
-  padding: 5px 6px;
-  border-bottom: 1px solid #e2e8f0;
-  white-space: nowrap;
+  border-color: #e2e8f0;
 }
-td {
-  padding: 4px 6px;
-  border-bottom: 1px solid #f1f5f9;
-  color: #334155;
-  white-space: nowrap;
+.pill.status-done {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
 }
-tr {
-  break-inside: avoid;
-  page-break-inside: avoid;
+.pill.status-partial {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
 }
-tr:nth-child(even) td { background: #f8fafc; }
-
-/* ===== PRINT SAFEGUARDS ===== */
+.pill.status-info {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
 @media print {
-  .cover-page { page-break-after: always; }
-  .section-pdf { page-break-inside: avoid; }
-  .kpi-card-pdf { page-break-inside: avoid; }
-  .chart-card-pdf { page-break-inside: avoid; }
-  .problem-item-pdf { page-break-inside: avoid; }
-  tr { page-break-inside: avoid; }
-  .section-title-pdf { page-break-after: avoid; }
-  .chart-title { page-break-after: avoid; }
-}</style>
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
 </head>
 <body>
-
-<!-- HEADER FIXO (repete em todas as páginas) -->
-<div class="header-fixed">
-  <div class="brand">
-    <div class="brand-icon">🛡️</div>
-    <div class="brand-text">Procon Carioca<span>Secretaria Municipal de Defesa do Consumidor</span></div>
-  </div>
-  <div class="doc-title">Relatório de Pesquisa de Mapeamento do Consumidor</div>
-  <div class="doc-meta">
-    <div><strong>${total}</strong> pesquisas</div>
-    <div>${periodoText}</div>
-  </div>
-</div>
-
-<!-- CAPA -->
-<div class="cover-page">
-  <div class="cover-icon">🛡️</div>
-  <div class="cover-title">Procon Carioca</div>
-  <div class="cover-subtitle">Relatório de Pesquisa de Mapeamento do Consumidor</div>
-  <div class="cover-meta">
-    <div class="cover-meta-row"><strong>${total}</strong> pesquisas filtradas</div>
-    <div class="cover-meta-row">${periodoText}</div>
-    <div class="cover-meta-row">Gerado em: <strong>${now}</strong></div>
-  </div>
-  <div class="cover-date">Secretaria Municipal de Defesa do Consumidor</div>
-</div>
-
-<!-- CONTEÚDO -->
-<div class="content-page">
-
-  <div class="section-pdf">
-    <div class="section-title-pdf">📊 Resumo Executivo</div>
-    <div class="kpi-grid-pdf">
-      <div class="kpi-card-pdf blue"><div class="label">Total Pesquisas</div><div class="value">${total}</div><div class="sub">registros</div></div>
-      <div class="kpi-card-pdf green"><div class="label">Conhece Direitos</div><div class="value">${pct(conheceDireitos, total)}%</div><div class="sub">${conheceDireitos} de ${total}</div></div>
-      <div class="kpi-card-pdf green"><div class="label">Conhece CDC</div><div class="value">${pct(conheceCDC, total)}%</div><div class="sub">${conheceCDC} de ${total}</div></div>
-      <div class="kpi-card-pdf green"><div class="label">Conhece Procon</div><div class="value">${pct(conheceProcon, total)}%</div><div class="sub">${conheceProcon} de ${total}</div></div>
-      <div class="kpi-card-pdf purple"><div class="label">Sabe Pedir Ajuda</div><div class="value">${pct(sabePedir, total)}%</div><div class="sub">${sabePedir} de ${total}</div></div>
-      <div class="kpi-card-pdf blue"><div class="label">Compra Internet</div><div class="value">${pct(compraInternet, total)}%</div><div class="sub">${compraInternet} de ${total}</div></div>
-      <div class="kpi-card-pdf red"><div class="label">Probl. Bancários</div><div class="value">${problemaBanco}</div><div class="sub">reportados</div></div>
-      <div class="kpi-card-pdf orange"><div class="label">Probl. Telecom</div><div class="value">${problemaOperadora}</div><div class="sub">operadoras</div></div>
-      <div class="kpi-card-pdf orange"><div class="label">Probl. Internet</div><div class="value">${problemaProvedora}</div><div class="sub">provedoras</div></div>
-      <div class="kpi-card-pdf red"><div class="label">Com Dívidas</div><div class="value">${temDividas}</div><div class="sub">consumidores</div></div>
-      <div class="kpi-card-pdf red"><div class="label">SPC/Serasa</div><div class="value">${nomeSPC}</div><div class="sub">negativados</div></div>
-      <div class="kpi-card-pdf gray"><div class="label">Empréstimo Consig.</div><div class="value">${emprestimo}</div><div class="sub">possuem</div></div>
-    </div>
-  </div>
-
-  <div class="section-pdf">
-    <div class="section-title-pdf">🎓 Conhecimento do Consumidor</div>
-    <div class="two-col-pdf">
-      <div class="chart-card-pdf"><div class="chart-title">Nível de Conhecimento dos Direitos</div><img src="${chartImages['chartConhecimento'] || ''}" alt=""></div>
-      <div class="chart-card-pdf"><div class="chart-title">Distribuição do Conhecimento (Radar)</div><img src="${chartImages['chartRadarConhecimento'] || ''}" alt=""></div>
-    </div>
-  </div>
-
-  <div class="section-pdf">
-    <div class="section-title-pdf">💰 Situação Financeira</div>
-    <div class="three-col-pdf">
-      <div class="chart-card-pdf"><div class="chart-title">Perfil Financeiro</div><img src="${chartImages['chartFinanceiro'] || ''}" alt=""></div>
-      <div class="chart-card-pdf"><div class="chart-title">Dívidas e Endividamento</div><img src="${chartImages['chartDividas'] || ''}" alt=""></div>
-      <div class="chart-card-pdf"><div class="chart-title">Bancos Utilizados</div><img src="${chartImages['chartBancos'] || ''}" alt=""></div>
-    </div>
-  </div>
-
-  <div class="section-pdf">
-    <div class="section-title-pdf">📡 Serviços e Telecomunicações</div>
-    <div class="three-col-pdf">
-      <div class="chart-card-pdf"><div class="chart-title">Operadoras de Telefonia</div><img src="${chartImages['chartOperadoras'] || ''}" alt=""></div>
-      <div class="chart-card-pdf"><div class="chart-title">Provedoras de Internet</div><img src="${chartImages['chartProvedoras'] || ''}" alt=""></div>
-      <div class="chart-card-pdf"><div class="chart-title">Problemas por Setor</div><img src="${chartImages['chartProblemasSetor'] || ''}" alt=""></div>
-    </div>
-  </div>
-
-  <div class="section-pdf">
-    <div class="section-title-pdf">⚡ Concessionárias de Serviços Públicos</div>
-    <div class="three-col-pdf">
-      <div class="chart-card-pdf"><div class="chart-title">Problemas com Concessionárias</div><img src="${chartImages['chartConcessionarias'] || ''}" alt=""></div>
-      <div class="chart-card-pdf"><div class="chart-title">Distribuição por Área</div><img src="${chartImages['chartAreas'] || ''}" alt=""></div>
-      <div class="chart-card-pdf"><div class="chart-title">Status das Pesquisas</div><img src="${chartImages['chartStatus'] || ''}" alt=""></div>
-    </div>
-  </div>
-
-  <div class="section-pdf">
-    <div class="section-title-pdf">⚠️ Tipos de Problemas Reportados</div>
-    <div class="problems-section-pdf">
-      ${problemsHtml}
-    </div>
-  </div>
-
-  <div class="section-pdf">
-    <div class="section-title-pdf">📋 Registros Detalhados</div>
-    <div class="table-wrap-pdf">
-      <div class="table-scroll-pdf">
-        <table>
-          <thead>${tableHeader}</thead>
-          <tbody>${tableRows}</tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <div class="footer-pdf">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-      <span>Secretaria Municipal de Defesa do Consumidor — Prefeitura da Cidade do Rio de Janeiro</span>
-      <span style="font-weight:700; color:#475569;">Documento confidencial — Uso interno</span>
-    </div>
-  </div>
-
-</div>
-
+${pagesHtml}
 <script>
-  window.onload = function() {
-    setTimeout(function() {
-      if (typeof window.print === 'function') {
-        window.print();
-      }
-    }, 800);
-  };
+window.onload = function() {
+  setTimeout(function() {
+    if (typeof window.print === 'function') {
+      window.print();
+    }
+  }, 500);
+};
 <\/script>
 </body>
 </html>
@@ -2034,11 +2147,11 @@ tr:nth-child(even) td { background: #f8fafc; }
       const campos = [
         { key: 'Se sim, qual tipo de problema?', label: 'Loja Online', color: COLORS.primary[0] },
         { key: 'Se sim,  Qual tipo de problema?', label: 'Banco', color: COLORS.danger[0] },
-        { key: 'Se sim, qual tipo de problema?', label: 'Operadora', color: COLORS.warning[0] },
-        { key: 'Se sim, qual tipo de problema?.1', label: 'Provedora Internet', color: COLORS.orange[0] },
-        { key: 'Se sim, qual tipo de problema?.2', label: 'Água', color: COLORS.primary[1] },
-        { key: 'Se sim, qual tipo de problema?.3', label: 'Energia', color: COLORS.purple[0] },
-        { key: 'Se sim, qual tipo de problema?.4', label: 'Gás', color: COLORS.teal[0] },
+        { key: 'Se sim, qual tipo de problema?.1', label: 'Operadora', color: COLORS.warning[0] },
+        { key: 'Se sim, qual tipo de problema?.2', label: 'Provedora Internet', color: COLORS.orange[0] },
+        { key: 'Se sim, qual tipo de problema?.3', label: 'Água', color: COLORS.primary[1] },
+        { key: 'Se sim, qual tipo de problema?.4', label: 'Energia', color: COLORS.purple[0] },
+        { key: 'Se sim, qual tipo de problema?.5', label: 'Gás', color: COLORS.teal[0] },
       ];
 
       campos.forEach(c => {
