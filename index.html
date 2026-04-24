@@ -672,26 +672,11 @@
       <div class="btn-group">
         <button class="btn-load" id="btnLoadOnline" onclick="carregarOnline()">
           <div class="spinner"></div>
-          <span class="btn-text">📡 Carregar do Google Sheets (Online)</span>
-        </button>
-
-        <button class="btn-load secondary" id="btnLoadOffline" onclick="carregarOffline()">
-          <div class="spinner"></div>
-          <span class="btn-text">💾 Usar Dados Embutidos (Offline)</span>
+          <span class="btn-text">📡 Carregar Dados da Pesquisa</span>
         </button>
       </div>
 
-      <!-- CORS Warning -->
-      <div class="cors-warning" id="corsWarning">
-        <h4>⚠️ Aviso de Segurança do Navegador (CORS)</h4>
-        <p>O navegador bloqueou o acesso ao Google Sheets porque você abriu este arquivo diretamente do computador (<code>file://</code>). Isso é uma proteção de segurança padrão.</p>
-        <p style="margin-top:8px"><strong>Opções para resolver:</strong></p>
-        <ul>
-          <li><strong>Opção 1 (Recomendada):</strong> Use a opção <strong>"Usar Dados Embutidos"</strong> acima — os dados da planilha já estão incluídos no arquivo.</li>
-          <li><strong>Opção 2:</strong> Abra este arquivo via um servidor local. No VS Code, instale a extensão <strong>"Live Server"</strong> e clique em "Go Live".</li>
-          <li><strong>Opção 3:</strong> Hospede este arquivo em um servidor web (GitHub Pages, Netlify, etc.) para acesso online completo.</li>
-        </ul>
-      </div>
+
     </div>
   </div>
 
@@ -718,7 +703,16 @@
         <span class="filter-label">Buscar</span>
         <input type="text" class="filter-input" id="filterBusca" placeholder="Nome, CPF, endereço...">
       </div>
+      <div class="filter-group">
+        <span class="filter-label">Período de</span>
+        <input type="date" class="filter-input" id="filterDataInicio" style="min-width:140px">
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">até</span>
+        <input type="date" class="filter-input" id="filterDataFim" style="min-width:140px">
+      </div>
       <button class="btn-clear" onclick="limparFiltros()">Limpar Filtros</button>
+      <button class="btn-clear" onclick="exportarPDF()" style="background: var(--primary); color: white; border-color: var(--primary);">📄 Exportar PDF</button>
       <div class="results-count">Exibindo <strong id="resultCount">0</strong> registros</div>
     </div>
   </div>
@@ -868,163 +862,8 @@
     const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRZfCwzAv_r4lt83iFDKsLT3Bfk4YoCCoafHVBkfD1pH8MlIXAcJUtq-PVcFU9zI_2Is3HCdOEMvHPf/pub?output=csv";
 
     // ═══════════════════════════════════════════════════════════════
-    // DADOS EMBUTIDOS (fallback offline — extraídos do CSV)
+    // DADOS CARREGADOS EXCLUSIVAMENTE ONLINE VIA GOOGLE SHEETS
     // ═══════════════════════════════════════════════════════════════
-    const embeddedData = [
-      {
-        "Carimbo de data/hora": "2026/04/20 22:53:48",
-        "Nome do Agente": "Meiry Berto",
-        "Data da pesquisa": "2026/04/20",
-        "Sala do Consumidor": "Engenhão",
-        "Área de mapeamento": "Cavalcante",
-        "Nome completo": "Marcela de Melo Silva",
-        "Seu CPF:": "075.081.504-30",
-        "Seu endereço completo": "Rua Visconde Saboia n°54",
-        "Seu telefone celular": "2196512-1870",
-        "Seu e-mail": "Não possui.",
-        "Sua data de nascimento": "1981/09/16",
-        "Conhece seus direitos em Defesa do Consumidor?": "Não conheço",
-        "Conhece  Código de Defesa do Consumidor (CDC)?": "Não conheço",
-        "Conhece a Secretaria Municipal de Defesa do Consumidor ?": "Não conheço",
-        "Conhece o Procon Municipal (Carioca)?": "Não conheço",
-        "Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo?": "Não sei",
-        "Utiliza a internet?": "Sim",
-        "Faz compras pela internet?": "Não",
-        "Qual loja mais costuma comprar pela internet?": "",
-        "Já teve problema com essa loja?": "Não",
-        "Se sim, qual tipo de problema?": "Falta de Sinal",
-        "Possui conta bancária?": "Sim",
-        "Qual banco utiliza?": "Caixa Econômica Federal",
-        "Já teve problema com ele?": "Não",
-        "Se sim,  Qual tipo de problema?": "",
-        "Possui empréstimo consignado?": "Não",
-        "Se sim,  em qual banco é o empréstimo?": "",
-        "Seu salário cobre suas despesas?": "Sim",
-        "Fica dívida para o mês seguinte?": "Sim",
-        "Possui outras dívidas?": "Sim",
-        "Onde ou com quem são as outras dívidas?": "Bradesco",
-        "Possui nome no SCPC, Serasa ou semelhantes?": "Não",
-        "Se sim, possui interesse em renegociar as dívidas?": "Não",
-        "Qual serviço de telefonia utiliza?": "TIM",
-        "Já teve problema com essa Operadora?": "Sim",
-        "Se sim, qual tipo de problema?": "Falta de Sinal",
-        "Qual prestadora de internet utiliza?": "TIM",
-        "Já teve problema com essa  provedora?": "Sim",
-        "Se sim, qual tipo de problema?.1": "Falta de Sinal",
-        "Possui fornecimento de água e energia elétrica?": "Sim",
-        "Qual prestadora de água?": "Águas do Rio",
-        "Já teve problema com a concessionária?": "Não",
-        "Se sim, qual tipo de problema?.2": "",
-        "Já teve problema com a concessionária de energia elétrica?": "Não",
-        "Se sim, qual tipo de problema?.3": "",
-        "Possui gás encanado ou em botijão?": "",
-        "Teve algum problema com o serviço de gás?": "Não",
-        "Se sim, qual tipo de problema?.4": "",
-        "Coluna 48": "Parcialmente concluída"
-      },
-      {
-        "Carimbo de data/hora": "2026/04/21 13:00:31",
-        "Nome do Agente": "Carlos Eduardo",
-        "Data da pesquisa": "2026/04/21",
-        "Sala do Consumidor": "Engenhão",
-        "Área de mapeamento": "Sampaio",
-        "Nome completo": "Ronaldo Franklin Pinto",
-        "Seu CPF:": "875.538.137-53",
-        "Seu endereço completo": "Rua Paim Pamplona, 635",
-        "Seu telefone celular": "21 98219-5384",
-        "Seu e-mail": "rfpinto@educacao.rj.gov.br",
-        "Sua data de nascimento": "1968/08/12",
-        "Conhece seus direitos em Defesa do Consumidor?": "Conheço",
-        "Conhece  Código de Defesa do Consumidor (CDC)?": "Conheço",
-        "Conhece a Secretaria Municipal de Defesa do Consumidor ?": "Conheço",
-        "Conhece o Procon Municipal (Carioca)?": "Conheço",
-        "Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo?": "Sei",
-        "Utiliza a internet?": "Sim",
-        "Faz compras pela internet?": "Sim",
-        "Qual loja mais costuma comprar pela internet?": "Shein, Shoppe e TikTok Shop",
-        "Já teve problema com essa loja?": "Sim",
-        "Se sim, qual tipo de problema?": "Demora na entrega",
-        "Possui conta bancária?": "Sim",
-        "Qual banco utiliza?": "Itaú e Nubank",
-        "Já teve problema com ele?": "Sim",
-        "Se sim,  Qual tipo de problema?": "Atendimento",
-        "Possui empréstimo consignado?": "Não",
-        "Se sim,  em qual banco é o empréstimo?": "",
-        "Seu salário cobre suas despesas?": "Não",
-        "Fica dívida para o mês seguinte?": "Não",
-        "Possui outras dívidas?": "Não",
-        "Onde ou com quem são as outras dívidas?": "",
-        "Possui nome no SCPC, Serasa ou semelhantes?": "Não",
-        "Se sim, possui interesse em renegociar as dívidas?": "Não",
-        "Qual serviço de telefonia utiliza?": "Claro",
-        "Já teve problema com essa Operadora?": "Sim",
-        "Se sim, qual tipo de problema?": "Corte de linha",
-        "Qual prestadora de internet utiliza?": "Claro",
-        "Já teve problema com essa  provedora?": "Não",
-        "Se sim, qual tipo de problema?.1": "",
-        "Possui fornecimento de água e energia elétrica?": "Sim",
-        "Qual prestadora de água?": "Águas do Rio",
-        "Já teve problema com a concessionária?": "Sim",
-        "Se sim, qual tipo de problema?.2": "Falta de manutenção",
-        "Já teve problema com a concessionária de energia elétrica?": "Não",
-        "Se sim, qual tipo de problema?.3": "",
-        "Possui gás encanado ou em botijão?": "Não",
-        "Teve algum problema com o serviço de gás?": "Não",
-        "Se sim, qual tipo de problema?.4": "",
-        "Coluna 48": "Concluída"
-      },
-      {
-        "Carimbo de data/hora": "2026/04/21 13:15:46",
-        "Nome do Agente": "Ronaldo Franklin",
-        "Data da pesquisa": "2026/04/21",
-        "Sala do Consumidor": "Engenhão",
-        "Área de mapeamento": "Sampaio",
-        "Nome completo": "Carlos Eduardo Franklin",
-        "Seu CPF:": "157.187.377-54",
-        "Seu endereço completo": "Rua Paim Pamplona, 635 / Sampaio",
-        "Seu telefone celular": "21976251919",
-        "Seu e-mail": "Não possui",
-        "Sua data de nascimento": "2001/02/01",
-        "Conhece seus direitos em Defesa do Consumidor?": "Não conheço",
-        "Conhece  Código de Defesa do Consumidor (CDC)?": "Não conheço",
-        "Conhece a Secretaria Municipal de Defesa do Consumidor ?": "Conheço",
-        "Conhece o Procon Municipal (Carioca)?": "Conheço",
-        "Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo?": "Não sei",
-        "Utiliza a internet?": "Sim",
-        "Faz compras pela internet?": "Sim",
-        "Qual loja mais costuma comprar pela internet?": "Netshoes.com",
-        "Já teve problema com essa loja?": "Não",
-        "Se sim, qual tipo de problema?": "",
-        "Possui conta bancária?": "Sim",
-        "Qual banco utiliza?": "Itau e Nubank",
-        "Já teve problema com ele?": "Não",
-        "Se sim,  Qual tipo de problema?": "",
-        "Possui empréstimo consignado?": "Sim",
-        "Se sim,  em qual banco é o empréstimo?": "Nubank",
-        "Seu salário cobre suas despesas?": "Sim",
-        "Fica dívida para o mês seguinte?": "Não",
-        "Possui outras dívidas?": "Não",
-        "Onde ou com quem são as outras dívidas?": "",
-        "Possui nome no SCPC, Serasa ou semelhantes?": "Não",
-        "Se sim, possui interesse em renegociar as dívidas?": "",
-        "Qual serviço de telefonia utiliza?": "Claro",
-        "Já teve problema com essa Operadora?": "Não",
-        "Se sim, qual tipo de problema?": "",
-        "Qual prestadora de internet utiliza?": "Claro",
-        "Já teve problema com essa  provedora?": "Não",
-        "Se sim, qual tipo de problema?.1": "",
-        "Possui fornecimento de água e energia elétrica?": "Sim",
-        "Qual prestadora de água?": "Águas do Rio",
-        "Já teve problema com a concessionária?": "Não",
-        "Se sim, qual tipo de problema?.2": "",
-        "Já teve problema com a concessionária de energia elétrica?": "Não",
-        "Se sim, qual tipo de problema?.3": "",
-        "Possui gás encanado ou em botijão?": "",
-        "Teve algum problema com o serviço de gás?": "Não",
-        "Se sim, qual tipo de problema?.4": "",
-        "Coluna 48": "Concluída"
-      }
-    ];
 
     let rawData = [];
     let filteredData = [];
@@ -1102,34 +941,15 @@
         if (!response.ok) throw new Error('Erro ' + response.status);
         const csvText = await response.text();
         rawData = parseCSV(csvText);
-        ativarDashboard(rawData, 'online');
+        ativarDashboard(rawData);
       } catch (err) {
         btn.classList.remove('loading');
         btn.disabled = false;
-
-        // Detecta se é problema de CORS (file://)
-        if (window.location.protocol === 'file:') {
-          document.getElementById('corsWarning').classList.add('visible');
-        } else {
-          alert('Erro ao carregar do Google Sheets:\n' + err.message);
-        }
+        alert('Erro ao carregar do Google Sheets:\n' + err.message);
       }
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // CARREGAR OFFLINE (dados embutidos)
-    // ═══════════════════════════════════════════════════════════════
-    function carregarOffline() {
-      const btn = document.getElementById('btnLoadOffline');
-      btn.classList.add('loading');
-      btn.disabled = true;
 
-      // Simula um pequeno delay para feedback visual
-      setTimeout(() => {
-        rawData = JSON.parse(JSON.stringify(embeddedData));
-        ativarDashboard(rawData, 'offline');
-      }, 400);
-    }
 
     // ═══════════════════════════════════════════════════════════════
     // ATIVAR DASHBOARD
@@ -1141,8 +961,7 @@
       document.getElementById('filtersBar').classList.add('visible');
       document.getElementById('mainContent').classList.add('visible');
 
-      const modoLabel = modo === 'online' ? ' (Online)' : ' (Offline)';
-      document.getElementById('headerTotal').textContent = data.length + ' pesquisa' + (data.length !== 1 ? 's' : '') + modoLabel;
+      document.getElementById('headerTotal').textContent = data.length + ' pesquisa' + (data.length !== 1 ? 's' : '');
 
       populateFilters();
       applyFilters();
@@ -1222,6 +1041,8 @@
       const area = document.getElementById('filterArea').value;
       const status = document.getElementById('filterStatus').value;
       const busca = document.getElementById('filterBusca').value.toLowerCase();
+      const dataInicio = document.getElementById('filterDataInicio').value;
+      const dataFim = document.getElementById('filterDataFim').value;
 
       filteredData = rawData.filter(d => {
         if (agente && d['Nome do Agente'] !== agente) return false;
@@ -1232,12 +1053,20 @@
           const searchable = Object.values(d).join(' ').toLowerCase();
           if (!searchable.includes(busca)) return false;
         }
+        if (dataInicio || dataFim) {
+          const dataPesquisa = d['Data da pesquisa'];
+          if (!dataPesquisa) return false;
+          const dt = new Date(dataPesquisa.replace(/\//g, '-'));
+          if (isNaN(dt.getTime())) return false;
+          const dtStr = dt.toISOString().split('T')[0];
+          if (dataInicio && dtStr < dataInicio) return false;
+          if (dataFim && dtStr > dataFim) return false;
+        }
         return true;
       });
 
       document.getElementById('resultCount').textContent = filteredData.length;
-      const modo = rawData === embeddedData ? ' (Offline)' : ' (Online)';
-      document.getElementById('headerTotal').textContent = filteredData.length + ' pesquisa' + (filteredData.length !== 1 ? 's' : '') + modo;
+      document.getElementById('headerTotal').textContent = filteredData.length + ' pesquisa' + (filteredData.length !== 1 ? 's' : '');
 
       renderAll();
     }
@@ -1248,12 +1077,287 @@
       document.getElementById('filterArea').value = '';
       document.getElementById('filterStatus').value = '';
       document.getElementById('filterBusca').value = '';
+      document.getElementById('filterDataInicio').value = '';
+      document.getElementById('filterDataFim').value = '';
       applyFilters();
     }
 
-    ['filterAgente','filterSala','filterArea','filterStatus','filterBusca'].forEach(id => {
-      document.getElementById(id).addEventListener('input', applyFilters);
+    ['filterAgente','filterSala','filterArea','filterStatus','filterBusca','filterDataInicio','filterDataFim'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', applyFilters);
     });
+
+
+    // ═══════════════════════════════════════════════════════════════
+    // EXPORTAR PDF (A4 Paisagem)
+    // ═══════════════════════════════════════════════════════════════
+    function exportarPDF() {
+      if (!filteredData || filteredData.length === 0) {
+        alert('Nenhum dado filtrado para exportar.');
+        return;
+      }
+
+      const total = filteredData.length;
+      const conheceDireitos = countBy(filteredData, 'Conhece seus direitos em Defesa do Consumidor?', 'Conheço');
+      const conheceCDC = countBy(filteredData, 'Conhece  Código de Defesa do Consumidor (CDC)?', 'Conheço');
+      const conheceProcon = countBy(filteredData, 'Conhece o Procon Municipal (Carioca)?', 'Conheço');
+      const sabePedir = countBy(filteredData, 'Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo?', 'Sei');
+      const problemaBanco = countBy(filteredData, 'Já teve problema com ele?', 'Sim');
+      const problemaOperadora = countBy(filteredData, 'Já teve problema com essa Operadora?', 'Sim');
+      const problemaProvedora = countBy(filteredData, 'Já teve problema com essa  provedora?', 'Sim');
+      const temDividas = countBy(filteredData, 'Possui outras dívidas?', 'Sim');
+      const nomeSPC = countBy(filteredData, 'Possui nome no SCPC, Serasa ou semelhantes?', 'Sim');
+      const emprestimo = countBy(filteredData, 'Possui empréstimo consignado?', 'Sim');
+      const compraInternet = countBy(filteredData, 'Faz compras pela internet?', 'Sim');
+      const salarioSim = countBy(filteredData, 'Seu salário cobre suas despesas?', 'Sim');
+      const dividaSim = countBy(filteredData, 'Fica dívida para o mês seguinte?', 'Sim');
+
+      // Collect chart images
+      const chartImages = {};
+      ['chartConhecimento','chartRadarConhecimento','chartFinanceiro','chartDividas',
+       'chartBancos','chartOperadoras','chartProvedoras','chartProblemasSetor',
+       'chartConcessionarias','chartAreas','chartStatus'].forEach(id => {
+        const canvas = document.getElementById(id);
+        if (canvas) chartImages[id] = canvas.toDataURL('image/png');
+      });
+
+      // Problems data
+      const problemas = {};
+      const camposProb = [
+        { key: 'Se sim, qual tipo de problema?', label: 'Loja Online' },
+        { key: 'Se sim,  Qual tipo de problema?', label: 'Banco' },
+        { key: 'Se sim, qual tipo de problema?', label: 'Operadora' },
+        { key: 'Se sim, qual tipo de problema?.1', label: 'Provedora Internet' },
+        { key: 'Se sim, qual tipo de problema?.2', label: 'Água' },
+        { key: 'Se sim, qual tipo de problema?.3', label: 'Energia' },
+        { key: 'Se sim, qual tipo de problema?.4', label: 'Gás' },
+      ];
+      camposProb.forEach(c => {
+        filteredData.forEach(d => {
+          const v = d[c.key];
+          if (v && v.toString().trim() && v.toString().trim().toLowerCase() !== 'nan') {
+            const key = `${c.label}: ${v.toString().trim()}`;
+            problemas[key] = (problemas[key] || 0) + 1;
+          }
+        });
+      });
+      const sortedProbs = Object.entries(problemas).sort((a, b) => b[1] - a[1]);
+
+      // Table rows
+      const pdfTableCols = [
+        { key: 'Nome completo', label: 'Nome' },
+        { key: 'Nome do Agente', label: 'Agente' },
+        { key: 'Sala do Consumidor', label: 'Sala' },
+        { key: 'Área de mapeamento', label: 'Área' },
+        { key: 'Data da pesquisa', label: 'Data' },
+        { key: 'Conhece seus direitos em Defesa do Consumidor?', label: 'Direitos' },
+        { key: 'Conhece  Código de Defesa do Consumidor (CDC)?', label: 'CDC' },
+        { key: 'Conhece o Procon Municipal (Carioca)?', label: 'Procon' },
+        { key: 'Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo?', label: 'Ajuda' },
+        { key: 'Utiliza a internet?', label: 'Internet' },
+        { key: 'Faz compras pela internet?', label: 'Compras' },
+        { key: 'Possui conta bancária?', label: 'Banco' },
+        { key: 'Já teve problema com ele?', label: 'Prob.Banco' },
+        { key: 'Possui empréstimo consignado?', label: 'Emprést.' },
+        { key: 'Seu salário cobre suas despesas?', label: 'Salário' },
+        { key: 'Possui outras dívidas?', label: 'Dívidas' },
+        { key: 'Possui nome no SCPC, Serasa ou semelhantes?', label: 'SPC/Serasa' },
+        { key: 'Qual serviço de telefonia utiliza?', label: 'Telefonia' },
+        { key: 'Já teve problema com essa Operadora?', label: 'Prob.Tel' },
+        { key: 'Qual prestadora de internet utiliza?', label: 'Internet' },
+        { key: 'Já teve problema com essa  provedora?', label: 'Prob.Net' },
+        { key: 'Já teve problema com a concessionária?', label: 'Prob.Água' },
+        { key: 'Já teve problema com a concessionária de energia elétrica?', label: 'Prob.Energia' },
+        { key: 'Teve algum problema com o serviço de gás?', label: 'Prob.Gás' },
+        { key: 'Coluna 48', label: 'Status' },
+      ];
+
+      const tableRows = filteredData.map(row => {
+        return '<tr>' + pdfTableCols.map(col => {
+          let val = row[col.key] || '';
+          return `<td>${val}</td>`;
+        }).join('') + '</tr>';
+      }).join('');
+
+      const tableHeader = '<tr>' + pdfTableCols.map(col => `<th>${col.label}</th>`).join('') + '</tr>';
+
+      // Build problems HTML
+      let problemsHtml = '';
+      if (sortedProbs.length === 0) {
+        problemsHtml = '<p style="color:#64748b; font-size:11px;">Nenhum problema reportado nos registros filtrados.</p>';
+      } else {
+        problemsHtml = '<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px;">' +
+          sortedProbs.map(([text, count]) => {
+            return `<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; font-size:10px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="color:#334155; font-weight:500;">${text}</span>
+              <span style="background:#fff; border:1px solid #e2e8f0; border-radius:100px; padding:1px 8px; font-weight:700; color:#0f172a; font-size:10px;">${count}</span>
+            </div>`;
+          }).join('') + '</div>';
+      }
+
+      const now = new Date().toLocaleDateString('pt-BR');
+      const periodoText = (() => {
+        const di = document.getElementById('filterDataInicio').value;
+        const df = document.getElementById('filterDataFim').value;
+        if (di && df) return `Período: ${di.split('-').reverse().join('/')} a ${df.split('-').reverse().join('/')}`;
+        if (di) return `A partir de: ${di.split('-').reverse().join('/')}`;
+        if (df) return `Até: ${df.split('-').reverse().join('/')}`;
+        return 'Período: Todas as datas';
+      })();
+
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Relatório Procon Carioca - ${now}</title>
+<style>
+@page { size: A4 landscape; margin: 12mm; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10px; color: #1e293b; line-height:1.4; }
+.page { width: 100%; padding: 0; }
+.header-pdf { display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #0066cc; padding-bottom:10px; margin-bottom:14px; }
+.header-pdf .title { font-size:18px; font-weight:800; color:#0066cc; letter-spacing:-0.02em; }
+.header-pdf .subtitle { font-size:11px; color:#64748b; margin-top:2px; }
+.header-pdf .meta { text-align:right; font-size:10px; color:#64748b; }
+.header-pdf .meta strong { color:#1e293b; }
+.section { margin-bottom:14px; }
+.section-title { font-size:12px; font-weight:700; color:#1e293b; margin-bottom:8px; padding-bottom:4px; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; gap:6px; }
+.kpi-grid { display:grid; grid-template-columns: repeat(6, 1fr); gap:8px; margin-bottom:10px; }
+.kpi-card { background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px; text-align:center; }
+.kpi-card .label { font-size:8px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px; }
+.kpi-card .value { font-size:16px; font-weight:800; color:#0f172a; }
+.kpi-card .sub { font-size:8px; color:#94a3b8; margin-top:2px; }
+.kpi-card.blue { border-top:3px solid #0066cc; }
+.kpi-card.green { border-top:3px solid #10b981; }
+.kpi-card.red { border-top:3px solid #ef4444; }
+.kpi-card.orange { border-top:3px solid #f59e0b; }
+.kpi-card.purple { border-top:3px solid #8b5cf6; }
+.kpi-card.gray { border-top:3px solid #64748b; }
+.charts-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-bottom:10px; }
+.chart-card { background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px; }
+.chart-card .chart-title { font-size:10px; font-weight:700; color:#334155; margin-bottom:6px; text-align:center; }
+.chart-card img { width:100%; height:160px; object-fit:contain; }
+.table-wrap { background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; }
+.table-scroll { overflow-x:auto; max-height:280px; overflow-y:auto; }
+table { width:100%; border-collapse:collapse; font-size:8px; }
+th { background:#f1f5f9; color:#475569; font-weight:600; text-align:left; padding:5px 6px; border-bottom:1px solid #e2e8f0; white-space:nowrap; position:sticky; top:0; }
+td { padding:4px 6px; border-bottom:1px solid #f1f5f9; color:#334155; white-space:nowrap; }
+tr:nth-child(even) td { background:#f8fafc; }
+.footer { margin-top:10px; text-align:center; font-size:8px; color:#94a3b8; border-top:1px solid #e2e8f0; padding-top:6px; }
+.two-col { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+.three-col { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; }
+.problems-section { background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px; }
+@media print {
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page { page-break-inside: avoid; }
+  .section { page-break-inside: avoid; }
+  .chart-card { page-break-inside: avoid; }
+  .kpi-card { page-break-inside: avoid; }
+  .table-wrap { page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header-pdf">
+    <div>
+      <div class="title">🛡️ Procon Carioca</div>
+      <div class="subtitle">Relatório de Pesquisa de Mapeamento do Consumidor</div>
+    </div>
+    <div class="meta">
+      <div><strong>${total}</strong> pesquisas filtradas</div>
+      <div>${periodoText}</div>
+      <div>Gerado em: ${now}</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">📊 Resumo Executivo</div>
+    <div class="kpi-grid">
+      <div class="kpi-card blue"><div class="label">Total Pesquisas</div><div class="value">${total}</div><div class="sub">registros</div></div>
+      <div class="kpi-card green"><div class="label">Conhece Direitos</div><div class="value">${pct(conheceDireitos, total)}%</div><div class="sub">${conheceDireitos} de ${total}</div></div>
+      <div class="kpi-card green"><div class="label">Conhece CDC</div><div class="value">${pct(conheceCDC, total)}%</div><div class="sub">${conheceCDC} de ${total}</div></div>
+      <div class="kpi-card green"><div class="label">Conhece Procon</div><div class="value">${pct(conheceProcon, total)}%</div><div class="sub">${conheceProcon} de ${total}</div></div>
+      <div class="kpi-card purple"><div class="label">Sabe Pedir Ajuda</div><div class="value">${pct(sabePedir, total)}%</div><div class="sub">${sabePedir} de ${total}</div></div>
+      <div class="kpi-card blue"><div class="label">Compra Internet</div><div class="value">${pct(compraInternet, total)}%</div><div class="sub">${compraInternet} de ${total}</div></div>
+      <div class="kpi-card red"><div class="label">Probl. Bancários</div><div class="value">${problemaBanco}</div><div class="sub">reportados</div></div>
+      <div class="kpi-card orange"><div class="label">Probl. Telecom</div><div class="value">${problemaOperadora}</div><div class="sub">operadoras</div></div>
+      <div class="kpi-card orange"><div class="label">Probl. Internet</div><div class="value">${problemaProvedora}</div><div class="sub">provedoras</div></div>
+      <div class="kpi-card red"><div class="label">Com Dívidas</div><div class="value">${temDividas}</div><div class="sub">consumidores</div></div>
+      <div class="kpi-card red"><div class="label">SPC/Serasa</div><div class="value">${nomeSPC}</div><div class="sub">negativados</div></div>
+      <div class="kpi-card gray"><div class="label">Empréstimo Consig.</div><div class="value">${emprestimo}</div><div class="sub">possuem</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">🎓 Conhecimento do Consumidor</div>
+    <div class="two-col">
+      <div class="chart-card"><div class="chart-title">Nível de Conhecimento dos Direitos</div><img src="${chartImages['chartConhecimento'] || ''}" alt=""></div>
+      <div class="chart-card"><div class="chart-title">Distribuição do Conhecimento (Radar)</div><img src="${chartImages['chartRadarConhecimento'] || ''}" alt=""></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">💰 Situação Financeira</div>
+    <div class="three-col">
+      <div class="chart-card"><div class="chart-title">Perfil Financeiro</div><img src="${chartImages['chartFinanceiro'] || ''}" alt=""></div>
+      <div class="chart-card"><div class="chart-title">Dívidas e Endividamento</div><img src="${chartImages['chartDividas'] || ''}" alt=""></div>
+      <div class="chart-card"><div class="chart-title">Bancos Utilizados</div><img src="${chartImages['chartBancos'] || ''}" alt=""></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">📡 Serviços e Telecomunicações</div>
+    <div class="three-col">
+      <div class="chart-card"><div class="chart-title">Operadoras de Telefonia</div><img src="${chartImages['chartOperadoras'] || ''}" alt=""></div>
+      <div class="chart-card"><div class="chart-title">Provedoras de Internet</div><img src="${chartImages['chartProvedoras'] || ''}" alt=""></div>
+      <div class="chart-card"><div class="chart-title">Problemas por Setor</div><img src="${chartImages['chartProblemasSetor'] || ''}" alt=""></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">⚡ Concessionárias de Serviços Públicos</div>
+    <div class="three-col">
+      <div class="chart-card"><div class="chart-title">Problemas com Concessionárias</div><img src="${chartImages['chartConcessionarias'] || ''}" alt=""></div>
+      <div class="chart-card"><div class="chart-title">Distribuição por Área</div><img src="${chartImages['chartAreas'] || ''}" alt=""></div>
+      <div class="chart-card"><div class="chart-title">Status das Pesquisas</div><img src="${chartImages['chartStatus'] || ''}" alt=""></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">⚠️ Tipos de Problemas Reportados</div>
+    <div class="problems-section">
+      ${problemsHtml}
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">📋 Registros Detalhados</div>
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table>
+          <thead>${tableHeader}</thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Procon Carioca — Secretaria Municipal de Defesa do Consumidor — Relatório gerado automaticamente em ${now}
+  </div>
+</div>
+<script>
+  window.onload = function() { setTimeout(function() { window.print(); }, 600); };
+<\/script>
+</body>
+</html>
+      `);
+      printWindow.document.close();
+    }
 
     // ═══════════════════════════════════════════════════════════════
     // RENDERIZAÇÃO
