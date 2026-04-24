@@ -1184,13 +1184,13 @@
       // Build problems HTML
       let problemsHtml = '';
       if (sortedProbs.length === 0) {
-        problemsHtml = '<p style="color:#64748b; font-size:11px;">Nenhum problema reportado nos registros filtrados.</p>';
+        problemsHtml = '<p style="color:#64748b; font-size:10px;">Nenhum problema reportado nos registros filtrados.</p>';
       } else {
-        problemsHtml = '<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px;">' +
+        problemsHtml = '<div class="problems-grid-pdf">' +
           sortedProbs.map(([text, count]) => {
-            return `<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px 10px; font-size:10px; display:flex; justify-content:space-between; align-items:center;">
-              <span style="color:#334155; font-weight:500;">${text}</span>
-              <span style="background:#fff; border:1px solid #e2e8f0; border-radius:100px; padding:1px 8px; font-weight:700; color:#0f172a; font-size:10px;">${count}</span>
+            return `<div class="problem-item-pdf">
+              <span class="problem-text-pdf">${text}</span>
+              <span class="problem-count-pdf">${count}</span>
             </div>`;
           }).join('') + '</div>';
       }
@@ -1213,131 +1213,329 @@
 <meta charset="UTF-8">
 <title>Relatório Procon Carioca - ${now}</title>
 <style>
-@page { size: A4 landscape; margin: 12mm; }
+@page {
+  size: A4 landscape;
+  margin: 18mm 14mm 18mm 14mm;
+  @top-center {
+    content: "🛡️ Procon Carioca  —  Relatório de Pesquisa de Mapeamento do Consumidor  —  ${now}";
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 8.5px;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 1.5px solid #0066cc;
+    padding-bottom: 6px;
+    width: 100%;
+  }
+  @bottom-center {
+    content: "Página " counter(page) " de " counter(pages);
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 8px;
+    color: #94a3b8;
+    padding-top: 4px;
+    border-top: 0.5px solid #e2e8f0;
+  }
+}
+
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10px; color: #1e293b; line-height:1.4; }
-.page { width: 100%; padding: 0; }
-.header-pdf { display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #0066cc; padding-bottom:10px; margin-bottom:14px; }
-.header-pdf .title { font-size:18px; font-weight:800; color:#0066cc; letter-spacing:-0.02em; }
-.header-pdf .subtitle { font-size:11px; color:#64748b; margin-top:2px; }
-.header-pdf .meta { text-align:right; font-size:10px; color:#64748b; }
-.header-pdf .meta strong { color:#1e293b; }
-.section { margin-bottom:14px; }
-.section-title { font-size:12px; font-weight:700; color:#1e293b; margin-bottom:8px; padding-bottom:4px; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; gap:6px; }
-.kpi-grid { display:grid; grid-template-columns: repeat(6, 1fr); gap:8px; margin-bottom:10px; }
-.kpi-card { background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px; text-align:center; }
-.kpi-card .label { font-size:8px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px; }
-.kpi-card .value { font-size:16px; font-weight:800; color:#0f172a; }
-.kpi-card .sub { font-size:8px; color:#94a3b8; margin-top:2px; }
-.kpi-card.blue { border-top:3px solid #0066cc; }
-.kpi-card.green { border-top:3px solid #10b981; }
-.kpi-card.red { border-top:3px solid #ef4444; }
-.kpi-card.orange { border-top:3px solid #f59e0b; }
-.kpi-card.purple { border-top:3px solid #8b5cf6; }
-.kpi-card.gray { border-top:3px solid #64748b; }
-.charts-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-bottom:10px; }
-.chart-card { background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px; }
-.chart-card .chart-title { font-size:10px; font-weight:700; color:#334155; margin-bottom:6px; text-align:center; }
-.chart-card img { width:100%; height:160px; object-fit:contain; }
-.table-wrap { background:#fff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; }
-.table-scroll { overflow-x:auto; max-height:280px; overflow-y:auto; }
-table { width:100%; border-collapse:collapse; font-size:8px; }
-th { background:#f1f5f9; color:#475569; font-weight:600; text-align:left; padding:5px 6px; border-bottom:1px solid #e2e8f0; white-space:nowrap; position:sticky; top:0; }
-td { padding:4px 6px; border-bottom:1px solid #f1f5f9; color:#334155; white-space:nowrap; }
-tr:nth-child(even) td { background:#f8fafc; }
-.footer { margin-top:10px; text-align:center; font-size:8px; color:#94a3b8; border-top:1px solid #e2e8f0; padding-top:6px; }
-.two-col { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
-.three-col { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; }
-.problems-section { background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px; }
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 10px;
+  color: #1e293b;
+  line-height:1.45;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ===== COVER PAGE ===== */
+.cover-page {
+  page-break-after: always;
+  break-after: page;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  text-align: center;
+  padding: 40px;
+}
+.cover-icon { font-size: 48px; margin-bottom: 16px; }
+.cover-title { font-size: 28px; font-weight: 800; color: #0066cc; letter-spacing: -0.02em; margin-bottom: 6px; }
+.cover-subtitle { font-size: 14px; color: #64748b; margin-bottom: 32px; }
+.cover-meta { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px 32px; display: inline-block; }
+.cover-meta-row { font-size: 12px; color: #475569; margin: 4px 0; }
+.cover-meta-row strong { color: #0f172a; }
+.cover-date { margin-top: 40px; font-size: 11px; color: #94a3b8; }
+
+/* ===== CONTENT PAGES ===== */
+.content-page { padding: 0; }
+
+.section-pdf {
+  margin-bottom: 18px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.section-title-pdf {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 10px;
+  padding-bottom: 5px;
+  border-bottom: 2px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+/* ===== KPIs ===== */
+.kpi-grid-pdf {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.kpi-card-pdf {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 8px;
+  text-align: center;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.kpi-card-pdf .label { font-size: 7.5px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 4px; }
+.kpi-card-pdf .value { font-size: 17px; font-weight: 800; color: #0f172a; }
+.kpi-card-pdf .sub { font-size: 7.5px; color: #94a3b8; margin-top: 2px; }
+.kpi-card-pdf.blue { border-top: 3px solid #0066cc; }
+.kpi-card-pdf.green { border-top: 3px solid #10b981; }
+.kpi-card-pdf.red { border-top: 3px solid #ef4444; }
+.kpi-card-pdf.orange { border-top: 3px solid #f59e0b; }
+.kpi-card-pdf.purple { border-top: 3px solid #8b5cf6; }
+.kpi-card-pdf.gray { border-top: 3px solid #64748b; }
+
+/* ===== CHARTS ===== */
+.charts-grid-pdf {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.chart-card-pdf {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.chart-card-pdf .chart-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 6px;
+  text-align: center;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+.chart-card-pdf img {
+  width: 100%;
+  height: 150px;
+  object-fit: contain;
+  display: block;
+}
+.two-col-pdf { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.three-col-pdf { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+
+/* ===== PROBLEMS ===== */
+.problems-section-pdf {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.problems-grid-pdf {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.problem-item-pdf {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 9.5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.problem-text-pdf { color: #334155; font-weight: 500; }
+.problem-count-pdf {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 100px;
+  padding: 1px 8px;
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 9.5px;
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+
+/* ===== TABLE ===== */
+.table-wrap-pdf {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  break-inside: auto;
+  page-break-inside: auto;
+}
+.table-scroll-pdf {
+  overflow-x: auto;
+  max-height: 320px;
+  overflow-y: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 7.5px;
+}
+thead {
+  display: table-header-group;
+}
+th {
+  background: #f1f5f9;
+  color: #475569;
+  font-weight: 600;
+  text-align: left;
+  padding: 5px 6px;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+td {
+  padding: 4px 6px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  white-space: nowrap;
+}
+tr {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+tr:nth-child(even) td { background: #f8fafc; }
+
+/* ===== FOOTER ===== */
+.footer-pdf {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 8px;
+  color: #94a3b8;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 6px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* ===== PRINT SAFEGUARDS ===== */
 @media print {
-  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .page { page-break-inside: avoid; }
-  .section { page-break-inside: avoid; }
-  .chart-card { page-break-inside: avoid; }
-  .kpi-card { page-break-inside: avoid; }
-  .table-wrap { page-break-inside: auto; }
+  .cover-page { page-break-after: always; }
+  .section-pdf { page-break-inside: avoid; }
+  .kpi-card-pdf { page-break-inside: avoid; }
+  .chart-card-pdf { page-break-inside: avoid; }
+  .problem-item-pdf { page-break-inside: avoid; }
   tr { page-break-inside: avoid; }
+  .section-title-pdf { page-break-after: avoid; }
+  .chart-title { page-break-after: avoid; }
 }
 </style>
 </head>
 <body>
-<div class="page">
-  <div class="header-pdf">
-    <div>
-      <div class="title">🛡️ Procon Carioca</div>
-      <div class="subtitle">Relatório de Pesquisa de Mapeamento do Consumidor</div>
-    </div>
-    <div class="meta">
-      <div><strong>${total}</strong> pesquisas filtradas</div>
-      <div>${periodoText}</div>
-      <div>Gerado em: ${now}</div>
+
+<!-- CAPA -->
+<div class="cover-page">
+  <div class="cover-icon">🛡️</div>
+  <div class="cover-title">Procon Carioca</div>
+  <div class="cover-subtitle">Relatório de Pesquisa de Mapeamento do Consumidor</div>
+  <div class="cover-meta">
+    <div class="cover-meta-row"><strong>${total}</strong> pesquisas filtradas</div>
+    <div class="cover-meta-row">${periodoText}</div>
+    <div class="cover-meta-row">Gerado em: <strong>${now}</strong></div>
+  </div>
+  <div class="cover-date">Secretaria Municipal de Defesa do Consumidor</div>
+</div>
+
+<!-- CONTEÚDO -->
+<div class="content-page">
+
+  <div class="section-pdf">
+    <div class="section-title-pdf">📊 Resumo Executivo</div>
+    <div class="kpi-grid-pdf">
+      <div class="kpi-card-pdf blue"><div class="label">Total Pesquisas</div><div class="value">${total}</div><div class="sub">registros</div></div>
+      <div class="kpi-card-pdf green"><div class="label">Conhece Direitos</div><div class="value">${pct(conheceDireitos, total)}%</div><div class="sub">${conheceDireitos} de ${total}</div></div>
+      <div class="kpi-card-pdf green"><div class="label">Conhece CDC</div><div class="value">${pct(conheceCDC, total)}%</div><div class="sub">${conheceCDC} de ${total}</div></div>
+      <div class="kpi-card-pdf green"><div class="label">Conhece Procon</div><div class="value">${pct(conheceProcon, total)}%</div><div class="sub">${conheceProcon} de ${total}</div></div>
+      <div class="kpi-card-pdf purple"><div class="label">Sabe Pedir Ajuda</div><div class="value">${pct(sabePedir, total)}%</div><div class="sub">${sabePedir} de ${total}</div></div>
+      <div class="kpi-card-pdf blue"><div class="label">Compra Internet</div><div class="value">${pct(compraInternet, total)}%</div><div class="sub">${compraInternet} de ${total}</div></div>
+      <div class="kpi-card-pdf red"><div class="label">Probl. Bancários</div><div class="value">${problemaBanco}</div><div class="sub">reportados</div></div>
+      <div class="kpi-card-pdf orange"><div class="label">Probl. Telecom</div><div class="value">${problemaOperadora}</div><div class="sub">operadoras</div></div>
+      <div class="kpi-card-pdf orange"><div class="label">Probl. Internet</div><div class="value">${problemaProvedora}</div><div class="sub">provedoras</div></div>
+      <div class="kpi-card-pdf red"><div class="label">Com Dívidas</div><div class="value">${temDividas}</div><div class="sub">consumidores</div></div>
+      <div class="kpi-card-pdf red"><div class="label">SPC/Serasa</div><div class="value">${nomeSPC}</div><div class="sub">negativados</div></div>
+      <div class="kpi-card-pdf gray"><div class="label">Empréstimo Consig.</div><div class="value">${emprestimo}</div><div class="sub">possuem</div></div>
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-title">📊 Resumo Executivo</div>
-    <div class="kpi-grid">
-      <div class="kpi-card blue"><div class="label">Total Pesquisas</div><div class="value">${total}</div><div class="sub">registros</div></div>
-      <div class="kpi-card green"><div class="label">Conhece Direitos</div><div class="value">${pct(conheceDireitos, total)}%</div><div class="sub">${conheceDireitos} de ${total}</div></div>
-      <div class="kpi-card green"><div class="label">Conhece CDC</div><div class="value">${pct(conheceCDC, total)}%</div><div class="sub">${conheceCDC} de ${total}</div></div>
-      <div class="kpi-card green"><div class="label">Conhece Procon</div><div class="value">${pct(conheceProcon, total)}%</div><div class="sub">${conheceProcon} de ${total}</div></div>
-      <div class="kpi-card purple"><div class="label">Sabe Pedir Ajuda</div><div class="value">${pct(sabePedir, total)}%</div><div class="sub">${sabePedir} de ${total}</div></div>
-      <div class="kpi-card blue"><div class="label">Compra Internet</div><div class="value">${pct(compraInternet, total)}%</div><div class="sub">${compraInternet} de ${total}</div></div>
-      <div class="kpi-card red"><div class="label">Probl. Bancários</div><div class="value">${problemaBanco}</div><div class="sub">reportados</div></div>
-      <div class="kpi-card orange"><div class="label">Probl. Telecom</div><div class="value">${problemaOperadora}</div><div class="sub">operadoras</div></div>
-      <div class="kpi-card orange"><div class="label">Probl. Internet</div><div class="value">${problemaProvedora}</div><div class="sub">provedoras</div></div>
-      <div class="kpi-card red"><div class="label">Com Dívidas</div><div class="value">${temDividas}</div><div class="sub">consumidores</div></div>
-      <div class="kpi-card red"><div class="label">SPC/Serasa</div><div class="value">${nomeSPC}</div><div class="sub">negativados</div></div>
-      <div class="kpi-card gray"><div class="label">Empréstimo Consig.</div><div class="value">${emprestimo}</div><div class="sub">possuem</div></div>
+  <div class="section-pdf">
+    <div class="section-title-pdf">🎓 Conhecimento do Consumidor</div>
+    <div class="two-col-pdf">
+      <div class="chart-card-pdf"><div class="chart-title">Nível de Conhecimento dos Direitos</div><img src="${chartImages['chartConhecimento'] || ''}" alt=""></div>
+      <div class="chart-card-pdf"><div class="chart-title">Distribuição do Conhecimento (Radar)</div><img src="${chartImages['chartRadarConhecimento'] || ''}" alt=""></div>
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-title">🎓 Conhecimento do Consumidor</div>
-    <div class="two-col">
-      <div class="chart-card"><div class="chart-title">Nível de Conhecimento dos Direitos</div><img src="${chartImages['chartConhecimento'] || ''}" alt=""></div>
-      <div class="chart-card"><div class="chart-title">Distribuição do Conhecimento (Radar)</div><img src="${chartImages['chartRadarConhecimento'] || ''}" alt=""></div>
+  <div class="section-pdf">
+    <div class="section-title-pdf">💰 Situação Financeira</div>
+    <div class="three-col-pdf">
+      <div class="chart-card-pdf"><div class="chart-title">Perfil Financeiro</div><img src="${chartImages['chartFinanceiro'] || ''}" alt=""></div>
+      <div class="chart-card-pdf"><div class="chart-title">Dívidas e Endividamento</div><img src="${chartImages['chartDividas'] || ''}" alt=""></div>
+      <div class="chart-card-pdf"><div class="chart-title">Bancos Utilizados</div><img src="${chartImages['chartBancos'] || ''}" alt=""></div>
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-title">💰 Situação Financeira</div>
-    <div class="three-col">
-      <div class="chart-card"><div class="chart-title">Perfil Financeiro</div><img src="${chartImages['chartFinanceiro'] || ''}" alt=""></div>
-      <div class="chart-card"><div class="chart-title">Dívidas e Endividamento</div><img src="${chartImages['chartDividas'] || ''}" alt=""></div>
-      <div class="chart-card"><div class="chart-title">Bancos Utilizados</div><img src="${chartImages['chartBancos'] || ''}" alt=""></div>
+  <div class="section-pdf">
+    <div class="section-title-pdf">📡 Serviços e Telecomunicações</div>
+    <div class="three-col-pdf">
+      <div class="chart-card-pdf"><div class="chart-title">Operadoras de Telefonia</div><img src="${chartImages['chartOperadoras'] || ''}" alt=""></div>
+      <div class="chart-card-pdf"><div class="chart-title">Provedoras de Internet</div><img src="${chartImages['chartProvedoras'] || ''}" alt=""></div>
+      <div class="chart-card-pdf"><div class="chart-title">Problemas por Setor</div><img src="${chartImages['chartProblemasSetor'] || ''}" alt=""></div>
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-title">📡 Serviços e Telecomunicações</div>
-    <div class="three-col">
-      <div class="chart-card"><div class="chart-title">Operadoras de Telefonia</div><img src="${chartImages['chartOperadoras'] || ''}" alt=""></div>
-      <div class="chart-card"><div class="chart-title">Provedoras de Internet</div><img src="${chartImages['chartProvedoras'] || ''}" alt=""></div>
-      <div class="chart-card"><div class="chart-title">Problemas por Setor</div><img src="${chartImages['chartProblemasSetor'] || ''}" alt=""></div>
+  <div class="section-pdf">
+    <div class="section-title-pdf">⚡ Concessionárias de Serviços Públicos</div>
+    <div class="three-col-pdf">
+      <div class="chart-card-pdf"><div class="chart-title">Problemas com Concessionárias</div><img src="${chartImages['chartConcessionarias'] || ''}" alt=""></div>
+      <div class="chart-card-pdf"><div class="chart-title">Distribuição por Área</div><img src="${chartImages['chartAreas'] || ''}" alt=""></div>
+      <div class="chart-card-pdf"><div class="chart-title">Status das Pesquisas</div><img src="${chartImages['chartStatus'] || ''}" alt=""></div>
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-title">⚡ Concessionárias de Serviços Públicos</div>
-    <div class="three-col">
-      <div class="chart-card"><div class="chart-title">Problemas com Concessionárias</div><img src="${chartImages['chartConcessionarias'] || ''}" alt=""></div>
-      <div class="chart-card"><div class="chart-title">Distribuição por Área</div><img src="${chartImages['chartAreas'] || ''}" alt=""></div>
-      <div class="chart-card"><div class="chart-title">Status das Pesquisas</div><img src="${chartImages['chartStatus'] || ''}" alt=""></div>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">⚠️ Tipos de Problemas Reportados</div>
-    <div class="problems-section">
+  <div class="section-pdf">
+    <div class="section-title-pdf">⚠️ Tipos de Problemas Reportados</div>
+    <div class="problems-section-pdf">
       ${problemsHtml}
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-title">📋 Registros Detalhados</div>
-    <div class="table-wrap">
-      <div class="table-scroll">
+  <div class="section-pdf">
+    <div class="section-title-pdf">📋 Registros Detalhados</div>
+    <div class="table-wrap-pdf">
+      <div class="table-scroll-pdf">
         <table>
           <thead>${tableHeader}</thead>
           <tbody>${tableRows}</tbody>
@@ -1346,12 +1544,20 @@ tr:nth-child(even) td { background:#f8fafc; }
     </div>
   </div>
 
-  <div class="footer">
+  <div class="footer-pdf">
     Procon Carioca — Secretaria Municipal de Defesa do Consumidor — Relatório gerado automaticamente em ${now}
   </div>
+
 </div>
+
 <script>
-  window.onload = function() { setTimeout(function() { window.print(); }, 600); };
+  window.onload = function() {
+    setTimeout(function() {
+      if (typeof window.print === 'function') {
+        window.print();
+      }
+    }, 800);
+  };
 <\/script>
 </body>
 </html>
