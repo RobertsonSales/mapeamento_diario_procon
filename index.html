@@ -939,16 +939,52 @@
       btn.classList.add('loading');
       btn.disabled = true;
 
+      // Extrai o ID da planilha publicada para montar a URL alternativa via gviz
+      // Tenta a URL original primeiro; se falhar por CORS, usa proxy allorigins
+      const tentativas = [
+        // 1ª tentativa: fetch direto (funciona quando a planilha retorna CORS correto)
+        () => fetch(sheetUrl, { redirect: 'follow' })
+                .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); }),
+
+        // 2ª tentativa: proxy allorigins.win (contorna CORS)
+        () => fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(sheetUrl))
+                .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+                .then(data => {
+                  if (!data.contents) throw new Error('Proxy sem conteúdo');
+                  return data.contents;
+                }),
+
+        // 3ª tentativa: proxy corsproxy.io
+        () => fetch('https://corsproxy.io/?' + encodeURIComponent(sheetUrl))
+                .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); }),
+      ];
+
+      let csvText = null;
+      let lastErr = null;
+
+      for (const tentativa of tentativas) {
+        try {
+          csvText = await tentativa();
+          if (csvText && csvText.trim().length > 0) break;
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+
+      if (!csvText || csvText.trim().length === 0) {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        alert('Não foi possível carregar os dados do Google Sheets.\n\nVerifique se a planilha está publicada como CSV em:\nArquivo → Compartilhar → Publicar na web → CSV\n\nErro técnico: ' + (lastErr ? lastErr.message : 'resposta vazia'));
+        return;
+      }
+
       try {
-        const response = await fetch(sheetUrl);
-        if (!response.ok) throw new Error('Erro ' + response.status);
-        const csvText = await response.text();
         rawData = parseCSV(csvText);
         ativarDashboard(rawData);
       } catch (err) {
         btn.classList.remove('loading');
         btn.disabled = false;
-        alert('Erro ao carregar do Google Sheets:\n' + err.message);
+        alert('Erro ao processar os dados: ' + err.message);
       }
     }
 
