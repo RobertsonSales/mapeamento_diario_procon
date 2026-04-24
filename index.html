@@ -713,6 +713,7 @@
       </div>
       <button class="btn-clear" onclick="limparFiltros()">Limpar Filtros</button>
       <button class="btn-clear" onclick="exportarPDF()" style="background: var(--primary); color: white; border-color: var(--primary);">📄 Exportar PDF</button>
+      <button class="btn-clear" onclick="exportarExtrato()" style="background: #0f7b5c; color: white; border-color: #0f7b5c;">📋 Extrato Sumarizado</button>
       <div class="results-count">Exibindo <strong id="resultCount">0</strong> registros</div>
     </div>
   </div>
@@ -975,6 +976,7 @@
     };
 
     function canonicalHeaderName(header) {
+      // Trim ALL trailing/leading spaces — the Google Form export adds trailing spaces to column headers
       const normalized = (header || '').toString().trim();
       return HEADER_ALIASES[normalized] || normalized;
     }
@@ -1147,10 +1149,10 @@
       }
 
       const total = filteredData.length;
-      const conheceDireitos = countBy(filteredData, 'Conhece seus direitos em Defesa do Consumidor?', 'Conheço');
-      const conheceCDC = countBy(filteredData, 'Conhece  Código de Defesa do Consumidor (CDC)?', 'Conheço');
-      const conheceProcon = countBy(filteredData, 'Conhece o Procon Municipal (Carioca)?', 'Conheço');
-      const sabePedir = countBy(filteredData, 'Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo?', 'Sei');
+      const conheceDireitos = countBy(filteredData, 'Conhece seus direitos em Defesa do Consumidor?', 'Sim');
+      const conheceCDC = countBy(filteredData, 'Conhece  Código de Defesa do Consumidor (CDC)?', 'Sim');
+      const conheceProcon = countBy(filteredData, 'Conhece o Procon Municipal (Carioca)?', 'Sim');
+      const sabePedir = countBy(filteredData, 'Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo?', 'Sim');
       const problemaBanco = countBy(filteredData, 'Já teve problema com ele?', 'Sim');
       const problemaOperadora = countBy(filteredData, 'Já teve problema com essa Operadora?', 'Sim');
       const problemaProvedora = countBy(filteredData, 'Já teve problema com essa  provedora?', 'Sim');
@@ -1234,8 +1236,8 @@
         }
 
         if (kind === 'tag') {
-          const positiveValues = ['Sim', 'Conheço', 'Sei'];
-          const negativeValues = ['Não', 'Não conheço', 'Não sei'];
+          const positiveValues = ['Sim'];
+          const negativeValues = ['Não'];
           const cls = positiveValues.includes(raw) ? 'positive' : negativeValues.includes(raw) ? 'negative' : 'neutral';
           return `<span class="pill ${cls}">${safe}</span>`;
         }
@@ -1839,6 +1841,558 @@ window.onload = function() {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // EXTRATO SUMARIZADO (PDF estilo relatório de campo)
+    // ═══════════════════════════════════════════════════════════════
+    function exportarExtrato() {
+      if (!filteredData.length) {
+        alert('Nenhum dado filtrado para exportar.');
+        return;
+      }
+
+      const total = filteredData.length;
+      const nowDateTime = new Date().toLocaleString('pt-BR');
+
+      // Helper para contar Sim/Não
+      const sim = (key) => countBy(filteredData, key, 'Sim');
+      const nao = (key) => filteredData.filter(d => d[key] === 'Não').length;
+
+      // Agentes e quantidade de fichas
+      const agentesMap = {};
+      filteredData.forEach(d => {
+        const ag = (d['Nome do Agente'] || '').trim();
+        if (ag) agentesMap[ag] = (agentesMap[ag] || 0) + 1;
+      });
+
+      // Empresas com queixas (todos os tipos de problema)
+      const empresasMap = {};
+      [
+        'Qual banco utiliza?', 'Qual serviço de telefonia utiliza?',
+        'Qual prestadora de internet utiliza?', 'Qual prestadora de água?',
+        'Qual loja mais costuma comprar pela internet?'
+      ].forEach(key => {
+        filteredData.forEach(d => {
+          // só contar se teve problema
+          const v = (d[key] || '').trim();
+          if (!v) return;
+          // split por vírgula ou "e"
+          v.split(/,|\s+e\s+/i).map(s => s.trim()).filter(s => s).forEach(emp => {
+            empresasMap[emp] = (empresasMap[emp] || 0) + 1;
+          });
+        });
+      });
+      const empresasComQueixa = Object.entries(empresasMap).sort((a,b) => b[1]-a[1]).slice(0, 15);
+
+      // Salas presentes
+      const salasSet = new Set(filteredData.map(d => (d['Sala do Consumidor'] || '').trim()).filter(s => s));
+      const salaLabel = salasSet.size === 1 ? Array.from(salasSet)[0] : (salasSet.size > 1 ? Array.from(salasSet).join(', ') : 'Todas');
+
+      // Filtro de período
+      const di = document.getElementById('filterDataInicio').value;
+      const df = document.getElementById('filterDataFim').value;
+      const periodoText = di && df ? `${di.split('-').reverse().join('/')} a ${df.split('-').reverse().join('/')}`
+        : di ? `A partir de ${di.split('-').reverse().join('/')}` : df ? `Até ${df.split('-').reverse().join('/')}` : 'Todas as datas';
+
+      const escH = (v) => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+      const buildRow = (label, simV, naoV) => `
+        <tr>
+          <td class="q-label">${escH(label)}</td>
+          <td class="q-sim">${simV}</td>
+          <td class="q-nao">${naoV}</td>
+        </tr>`;
+
+      const agentesRows = Object.entries(agentesMap).sort((a,b) => b[1]-a[1]).map(([nome, qt]) => `
+        <tr><td class="ag-nome">${escH(nome)}</td><td class="ag-qt">${qt}</td></tr>`).join('');
+
+      const empresasRows = empresasComQueixa.map(([nome, qt]) => `
+        <tr><td class="emp-nome">${escH(nome)}</td><td class="emp-qt">${qt}</td></tr>`).join('');
+
+      const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Extrato Sumarizado — Procon Carioca</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@400;500;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #f0f2f5;
+    color: #1a202c;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  @page { size: A4 portrait; margin: 14mm 14mm 14mm 14mm; }
+  @media print {
+    body { background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .page { page-break-after: always; box-shadow: none; margin: 0; border-radius: 0; }
+    .page:last-child { page-break-after: auto; }
+    .no-print { display: none !important; }
+  }
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    background: white;
+    margin: 20px auto;
+    padding: 14mm;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.15);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* Header */
+  .doc-header {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    border: 2px solid #1a56a0;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 6mm;
+  }
+  .doc-header-stripe {
+    width: 10px;
+    background: linear-gradient(180deg, #1a56a0 0%, #0d3a6e 100%);
+    flex-shrink: 0;
+  }
+  .doc-header-body {
+    flex: 1;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: linear-gradient(135deg, #f0f6ff 0%, #ffffff 100%);
+  }
+  .doc-header-left { display: flex; flex-direction: column; gap: 2px; }
+  .doc-kicker {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #1a56a0;
+  }
+  .doc-title {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: #0d3a6e;
+    line-height: 1.2;
+  }
+  .doc-subtitle {
+    font-size: 9px;
+    color: #4a5568;
+    margin-top: 2px;
+  }
+  .doc-header-right {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 8px;
+    font-weight: 600;
+    background: #1a56a0;
+    color: white;
+  }
+  .meta-line {
+    font-size: 8px;
+    color: #718096;
+  }
+
+  /* Section blocks */
+  .section {
+    margin-bottom: 5mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 10px;
+    border-radius: 6px 6px 0 0;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-left: 4px solid;
+  }
+  .section-header.azul { background: #ebf4ff; color: #1a4a8a; border-color: #1a56a0; }
+  .section-header.verde { background: #e6f9f2; color: #145a3a; border-color: #10b981; }
+  .section-header.laranja { background: #fff7ed; color: #7c3a00; border-color: #f97316; }
+  .section-header.roxo { background: #f5f0ff; color: #4c1d95; border-color: #7c3aed; }
+  .section-header.cinza { background: #f8fafc; color: #374151; border-color: #94a3b8; }
+
+  /* Tables for Sim/Não */
+  .q-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid #e2e8f0;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    overflow: hidden;
+  }
+  .q-table thead tr { background: #f8fafc; }
+  .q-table thead th {
+    padding: 5px 10px;
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .q-table thead th.col-sim { color: #10b981; }
+  .q-table thead th.col-nao { color: #ef4444; }
+  .q-table tbody tr:hover td { background: #f8fafc; }
+  .q-table tbody tr:last-child td { border-bottom: none; }
+  td.q-label {
+    padding: 6px 10px;
+    font-size: 9.5px;
+    color: #2d3748;
+    border-bottom: 1px solid #f1f5f9;
+    width: 75%;
+  }
+  td.q-sim, td.q-nao {
+    text-align: center;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 800;
+    border-bottom: 1px solid #f1f5f9;
+    width: 12.5%;
+  }
+  td.q-sim { color: #059669; }
+  td.q-nao { color: #dc2626; }
+
+  /* Agents table */
+  .agents-table, .empresas-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid #e2e8f0;
+    border-top: none;
+    overflow: hidden;
+  }
+  .agents-table thead tr, .empresas-table thead tr { background: #f8fafc; }
+  .agents-table thead th, .empresas-table thead th {
+    padding: 5px 10px;
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+  }
+  td.ag-nome, td.emp-nome {
+    padding: 5px 10px;
+    font-size: 9.5px;
+    color: #2d3748;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  td.ag-qt, td.emp-qt {
+    padding: 5px 10px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #1a56a0;
+    border-bottom: 1px solid #f1f5f9;
+    text-align: center;
+  }
+  .agents-table tbody tr:last-child td, .empresas-table tbody tr:last-child td { border-bottom: none; }
+  .total-row td {
+    background: #1a56a0 !important;
+    color: white !important;
+    font-weight: 800 !important;
+    padding: 6px 10px !important;
+  }
+
+  /* Two column layout */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+  .two-col .section { margin-bottom: 0; }
+
+  /* Footer */
+  .doc-footer {
+    margin-top: auto;
+    padding-top: 4mm;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 7.5px;
+    color: #94a3b8;
+  }
+
+  /* Print button */
+  .no-print {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    gap: 10px;
+    z-index: 9999;
+  }
+  .btn-print {
+    padding: 10px 20px;
+    background: #1a56a0;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(26,86,160,0.4);
+  }
+  .btn-close {
+    padding: 10px 20px;
+    background: #fff;
+    color: #64748b;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+  }
+  .page-num {
+    font-size: 8px;
+    color: #94a3b8;
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<div class="no-print">
+  <button class="btn-close" onclick="window.close()">✕ Fechar</button>
+  <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+</div>
+
+<div class="page">
+
+  <!-- Cabeçalho -->
+  <div class="doc-header">
+    <div class="doc-header-stripe"></div>
+    <div class="doc-header-body">
+      <div class="doc-header-left">
+        <div class="doc-kicker">Procon Carioca — Secretaria Municipal de Defesa do Consumidor</div>
+        <div class="doc-title">Relatório Totalizador de Fichas de Atendimento</div>
+        <div class="doc-subtitle">Extrato sumarizado das respostas coletadas pelos agentes socioeducadores</div>
+      </div>
+      <div class="doc-header-right">
+        <span class="meta-pill">🏛️ Sala do Consumidor: ${escH(salaLabel)}</span>
+        <span class="meta-line">📅 Período: ${escH(periodoText)}</span>
+        <span class="meta-line">📄 Gerado em: ${escH(nowDateTime)}</span>
+        <span class="meta-line">Total de fichas filtradas: <strong>${total}</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Conhecimento dos Direitos -->
+  <div class="section">
+    <div class="section-header azul">🎓 Conhecimento dos Direitos do Consumidor</div>
+    <table class="q-table">
+      <thead>
+        <tr>
+          <th style="text-align:left; width:75%">Perguntas</th>
+          <th class="col-sim">SIM</th>
+          <th class="col-nao">NÃO</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${buildRow('Conhece seus direitos em defesa do consumidor?', sim('Conhece seus direitos em Defesa do Consumidor?'), nao('Conhece seus direitos em Defesa do Consumidor?'))}
+        ${buildRow('Conhece o Código de Defesa do Consumidor (CDC)?', sim('Conhece  Código de Defesa do Consumidor (CDC)?'), nao('Conhece  Código de Defesa do Consumidor (CDC)?'))}
+        ${buildRow('Conhece a Secretaria Municipal de Defesa do Consumidor?', sim('Conhece a Secretaria Municipal de Defesa do Consumidor ?'), nao('Conhece a Secretaria Municipal de Defesa do Consumidor ?'))}
+        ${buildRow('Conhece o Procon Municipal (Carioca)?', sim('Conhece o Procon Municipal (Carioca)?'), nao('Conhece o Procon Municipal (Carioca)?'))}
+        ${buildRow('Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo?', sim('Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo?'), nao('Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo?'))}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="two-col">
+
+    <!-- Internet e Compras Online -->
+    <div class="section">
+      <div class="section-header azul">🌐 1. Internet e Compras Online</div>
+      <table class="q-table">
+        <thead>
+          <tr>
+            <th style="text-align:left">Perguntas</th>
+            <th class="col-sim">SIM</th>
+            <th class="col-nao">NÃO</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${buildRow('Utiliza a internet?', sim('Utiliza a internet?'), nao('Utiliza a internet?'))}
+          ${buildRow('Faz compras pela internet?', sim('Faz compras pela internet?'), nao('Faz compras pela internet?'))}
+          ${buildRow('Já teve problema com loja online?', sim('Já teve problema com essa loja?'), nao('Já teve problema com essa loja?'))}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Instituição e Educação Financeira -->
+    <div class="section">
+      <div class="section-header verde">💰 2. Instituição e Educação Financeira</div>
+      <table class="q-table">
+        <thead>
+          <tr>
+            <th style="text-align:left">Perguntas</th>
+            <th class="col-sim">SIM</th>
+            <th class="col-nao">NÃO</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${buildRow('Possui conta bancária?', sim('Possui conta bancária?'), nao('Possui conta bancária?'))}
+          ${buildRow('Já teve problema com banco?', sim('Já teve problema com ele?'), nao('Já teve problema com ele?'))}
+          ${buildRow('Possui empréstimo consignado?', sim('Possui empréstimo consignado?'), nao('Possui empréstimo consignado?'))}
+          ${buildRow('Seu salário cobre suas despesas?', sim('Seu salário cobre suas despesas?'), nao('Seu salário cobre suas despesas?'))}
+          ${buildRow('Fica dívida para o mês seguinte?', sim('Fica dívida para o mês seguinte?'), nao('Fica dívida para o mês seguinte?'))}
+          ${buildRow('Possui outras dívidas?', sim('Possui outras dívidas?'), nao('Possui outras dívidas?'))}
+          ${buildRow('Possui nome no SCPC, Serasa ou semelhantes?', sim('Possui nome no SCPC, Serasa ou semelhantes?'), nao('Possui nome no SCPC, Serasa ou semelhantes?'))}
+          ${buildRow('Possui interesse em renegociar as dívidas?', sim('Se sim, possui interesse em renegociar as dívidas?'), nao('Se sim, possui interesse em renegociar as dívidas?'))}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Telefonia e Internet -->
+    <div class="section">
+      <div class="section-header laranja">📡 3. Serviços de Telefonia e Internet</div>
+      <table class="q-table">
+        <thead>
+          <tr>
+            <th style="text-align:left">Perguntas</th>
+            <th class="col-sim">SIM</th>
+            <th class="col-nao">NÃO</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${buildRow('Já teve problema com telefonia?', sim('Já teve problema com essa Operadora?'), nao('Já teve problema com essa Operadora?'))}
+          ${buildRow('Já teve problema com internet?', sim('Já teve problema com essa  provedora?'), nao('Já teve problema com essa  provedora?'))}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Serviços Essenciais -->
+    <div class="section">
+      <div class="section-header roxo">⚡ 4. Serviços Essenciais (Água e Luz)</div>
+      <table class="q-table">
+        <thead>
+          <tr>
+            <th style="text-align:left">Perguntas</th>
+            <th class="col-sim">SIM</th>
+            <th class="col-nao">NÃO</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${buildRow('Possui fornecimento de água e luz?', sim('Possui fornecimento de água e energia elétrica?'), nao('Possui fornecimento de água e energia elétrica?'))}
+          ${buildRow('Já teve problema com fornecedora de água?', sim('Já teve problema com a concessionária?'), nao('Já teve problema com a concessionária?'))}
+          ${buildRow('Já teve problema com prestadora de luz?', sim('Já teve problema com a concessionária de energia elétrica?'), nao('Já teve problema com a concessionária de energia elétrica?'))}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- Gás -->
+  <div class="section">
+    <div class="section-header cinza">🔥 5. Gás</div>
+    <table class="q-table">
+      <thead>
+        <tr>
+          <th style="text-align:left; width:75%">Perguntas</th>
+          <th class="col-sim">SIM</th>
+          <th class="col-nao">NÃO</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${buildRow('Possui gás encanado ou botijão?', sim('Possui gás encanado ou em botijão?'), nao('Possui gás encanado ou em botijão?'))}
+        ${buildRow('Teve algum problema com o serviço de gás?', sim('Teve algum problema com o serviço de gás?'), nao('Teve algum problema com o serviço de gás?'))}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="two-col">
+
+    <!-- Lista de Agentes -->
+    <div class="section">
+      <div class="section-header azul">👤 Lista de Agentes Socioeducadores</div>
+      <table class="agents-table">
+        <thead>
+          <tr>
+            <th>Agente</th>
+            <th style="text-align:center">Qt. Fichas</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${agentesRows}
+          <tr class="total-row">
+            <td>TOTAL DE FICHAS</td>
+            <td style="text-align:center">${total}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Empresas com queixas -->
+    <div class="section">
+      <div class="section-header laranja">⚠️ Empresas Mencionadas com Queixas</div>
+      <table class="empresas-table">
+        <thead>
+          <tr>
+            <th>Empresa</th>
+            <th style="text-align:center">Reclamações</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${empresasRows || '<tr><td colspan="2" style="padding:8px 10px; color:#94a3b8; font-size:9px; text-align:center;">Nenhuma empresa identificada</td></tr>'}
+          <tr class="total-row">
+            <td>TOTAL DE QUEIXAS</td>
+            <td style="text-align:center">${empresasComQueixa.reduce((acc, [,qt]) => acc + qt, 0)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- Rodapé -->
+  <div class="doc-footer">
+    <span>🛡️ Procon Carioca — Secretaria Municipal de Defesa do Consumidor</span>
+    <span>${escH(nowDateTime)}</span>
+    <span class="page-num">Página 1</span>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+window.onload = function() {
+  // Auto-print after fonts load
+  setTimeout(() => {
+    if (typeof window.print === 'function') window.print();
+  }, 800);
+};
+<\/script>
+</body>
+</html>`;
+
+      const printWindow = window.open('', '_blank', 'width=900,height=800');
+      if (!printWindow) {
+        alert('Permita pop-ups para abrir o extrato.');
+        return;
+      }
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // RENDERIZAÇÃO
     // ═══════════════════════════════════════════════════════════════
     function renderKPIs() {
@@ -1848,10 +2402,10 @@ window.onload = function() {
         return;
       }
 
-      const conheceDireitos = countBy(filteredData, 'Conhece seus direitos em Defesa do Consumidor?', 'Conheço');
-      const conheceCDC = countBy(filteredData, 'Conhece  Código de Defesa do Consumidor (CDC)?', 'Conheço');
-      const conheceProcon = countBy(filteredData, 'Conhece o Procon Municipal (Carioca)?', 'Conheço');
-      const sabePedir = countBy(filteredData, 'Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo?', 'Sei');
+      const conheceDireitos = countBy(filteredData, 'Conhece seus direitos em Defesa do Consumidor?', 'Sim');
+      const conheceCDC = countBy(filteredData, 'Conhece  Código de Defesa do Consumidor (CDC)?', 'Sim');
+      const conheceProcon = countBy(filteredData, 'Conhece o Procon Municipal (Carioca)?', 'Sim');
+      const sabePedir = countBy(filteredData, 'Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo?', 'Sim');
       const problemaBanco = countBy(filteredData, 'Já teve problema com ele?', 'Sim');
       const problemaOperadora = countBy(filteredData, 'Já teve problema com essa Operadora?', 'Sim');
       const problemaProvedora = countBy(filteredData, 'Já teve problema com essa  provedora?', 'Sim');
@@ -1900,11 +2454,11 @@ window.onload = function() {
       destroyChart('chartConhecimento');
       const concLabels = ['Direitos do Consumidor', 'Código de Defesa (CDC)', 'Secretaria Municipal', 'Procon Carioca', 'Sabe Pedir Ajuda'];
       const concSim = [
-        countBy(filteredData, 'Conhece seus direitos em Defesa do Consumidor?', 'Conheço'),
-        countBy(filteredData, 'Conhece  Código de Defesa do Consumidor (CDC)?', 'Conheço'),
-        countBy(filteredData, 'Conhece a Secretaria Municipal de Defesa do Consumidor ?', 'Conheço'),
-        countBy(filteredData, 'Conhece o Procon Municipal (Carioca)?', 'Conheço'),
-        countBy(filteredData, 'Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo?', 'Sei'),
+        countBy(filteredData, 'Conhece seus direitos em Defesa do Consumidor?', 'Sim'),
+        countBy(filteredData, 'Conhece  Código de Defesa do Consumidor (CDC)?', 'Sim'),
+        countBy(filteredData, 'Conhece a Secretaria Municipal de Defesa do Consumidor ?', 'Sim'),
+        countBy(filteredData, 'Conhece o Procon Municipal (Carioca)?', 'Sim'),
+        countBy(filteredData, 'Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo?', 'Sim'),
       ];
       const concNao = concSim.map(s => total - s);
 
@@ -1913,8 +2467,8 @@ window.onload = function() {
         data: {
           labels: concLabels,
           datasets: [
-            { label: 'Sim / Conheço / Sei', data: concSim, backgroundColor: COLORS.primary[0], borderRadius: 6, barPercentage: 0.6 },
-            { label: 'Não / Não conheço / Não sei', data: concNao, backgroundColor: COLORS.gray[2], borderRadius: 6, barPercentage: 0.6 },
+            { label: 'Sim', data: concSim, backgroundColor: COLORS.primary[0], borderRadius: 6, barPercentage: 0.6 },
+            { label: 'Não', data: concNao, backgroundColor: COLORS.gray[2], borderRadius: 6, barPercentage: 0.6 },
           ]
         },
         options: {
@@ -2272,7 +2826,7 @@ window.onload = function() {
         return '<tr>' + tableColumns.map(col => {
           let val = row[col.key] || '';
           if (col.tag) {
-            const cls = val === 'Sim' || val === 'Conheço' || val === 'Sei' ? 'tag-sim' : 'tag-nao';
+            const cls = val === 'Sim' ? 'tag-sim' : 'tag-nao';
             val = val ? `<span class="tag ${cls}">${val}</span>` : '<span class="tag" style="background:#f1f5f9;color:#94a3b8">—</span>';
           } else if (col.status) {
             const cls = val === 'Concluída' ? 'tag-concluida' : val === 'Parcialmente concluída' ? 'tag-parcial' : 'tag-info';
