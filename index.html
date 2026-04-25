@@ -267,6 +267,7 @@
       transform: translateY(-1px);
       box-shadow: 0 5px 16px rgba(0,102,204,0.45);
     }
+    .btn-ficha {
       display: inline-flex; align-items: center; justify-content: center;
       width: 28px; height: 28px;
       background: var(--primary-light);
@@ -3302,6 +3303,8 @@ window.onload = function() {
       if (pdfBtn) {
         pdfBtn.onclick = () => openCitizenPDF(rowIndex);
       }
+
+    } // end openCitizenModal
 
     function closeCitizenModal() {
       document.getElementById('citizenModalOverlay').classList.remove('open');
