@@ -130,7 +130,7 @@
       border-top: 1px solid rgba(255,255,255,0.15);
       padding: 16px 28px;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      grid-template-columns: 1fr 1fr 1fr 1fr;
       gap: 12px 24px;
     }
     .citizen-personal-field {
@@ -251,8 +251,22 @@
       flex-shrink: 0;
     }
 
-    /* Table action button */
-    .btn-ficha {
+    /* PDF print button */
+    .btn-pdf-print {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 8px 18px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      border: none; border-radius: 8px;
+      font-size: 0.82rem; font-weight: 600; font-family: inherit;
+      cursor: pointer;
+      box-shadow: 0 3px 10px rgba(0,102,204,0.35);
+      transition: all 0.2s;
+    }
+    .btn-pdf-print:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 5px 16px rgba(0,102,204,0.45);
+    }
       display: inline-flex; align-items: center; justify-content: center;
       width: 28px; height: 28px;
       background: var(--primary-light);
@@ -3172,11 +3186,11 @@ window.onload = function() {
           <span class="field-label">Telefone</span>
           <span class="field-value">${esc(telefone)}</span>
         </div>
-        <div class="citizen-personal-field">
+        <div class="citizen-personal-field" style="grid-column:span 1">
           <span class="field-label">E-mail</span>
           <span class="field-value">${esc(email)}</span>
         </div>
-        <div class="citizen-personal-field" style="grid-column:1/-1">
+        <div class="citizen-personal-field" style="grid-column:span 3">
           <span class="field-label">Endereço</span>
           <span class="field-value">${esc(endereco)}</span>
         </div>
@@ -3282,11 +3296,399 @@ window.onload = function() {
 
       overlay.classList.add('open');
       document.body.style.overflow = 'hidden';
-    }
+
+      // Wire PDF button to this specific row
+      const pdfBtn = document.getElementById('citizenPdfBtn');
+      if (pdfBtn) {
+        pdfBtn.onclick = () => openCitizenPDF(rowIndex);
+      }
 
     function closeCitizenModal() {
       document.getElementById('citizenModalOverlay').classList.remove('open');
       document.body.style.overflow = '';
+    }
+
+    // ── PDF da Ficha do Cidadão ──────────────────────────────────
+    function openCitizenPDF(rowIndex) {
+      const row = filteredData[rowIndex];
+      if (!row) return;
+
+      const val = (key) => (row[key] || '').toString().trim();
+      const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+      // personal
+      const nome        = val('Nome completo') || '—';
+      const cpf         = val('Seu CPF:') || '—';
+      const nascimento  = val('Sua data de nascimento');
+      const nascFmt     = nascimento ? (() => { try { return new Date(nascimento).toLocaleDateString('pt-BR'); } catch(e){ return nascimento; } })() : '—';
+      const email       = val('Seu e-mail') || '—';
+      const telefone    = val('Seu telefone celular') || '—';
+      const endereco    = val('Seu endereço completo') || '—';
+      const agente      = val('Nome do Agente') || '—';
+      const sala        = val('Sala do Consumidor') || '—';
+      const area        = val('Área de mapeamento') || '—';
+      const dataPesq    = val('Data da pesquisa');
+      const dataPesqFmt = dataPesq ? (() => { try { const d = new Date(dataPesq); return isNaN(d) ? dataPesq : d.toLocaleDateString('pt-BR'); } catch(e){ return dataPesq; } })() : '—';
+      const status      = val('Coluna 48') || '—';
+      const nowDT       = new Date().toLocaleString('pt-BR');
+
+      // helper builders
+      const pillHtml = (v) => {
+        if (!v || v === '—') return `<span class="pill neutral">—</span>`;
+        if (v === 'Sim') return `<span class="pill positive">Sim</span>`;
+        if (v === 'Não') return `<span class="pill negative">Não</span>`;
+        return `<span class="pill neutral">${esc(v)}</span>`;
+      };
+      const qaRow = (label, key) => {
+        const v = val(key);
+        return `<div class="qa-row"><span class="qa-q">${esc(label)}</span><span class="qa-a">${pillHtml(v)}</span></div>`;
+      };
+      const qaPlain = (label, key) => {
+        const v = val(key) || '—';
+        return `<div class="qa-row"><span class="qa-q">${esc(label)}</span><span class="qa-a qa-text">${esc(v)}</span></div>`;
+      };
+      const qaOpen = (label, key) => {
+        const v = val(key);
+        if (!v) return '';
+        return `<div class="qa-open"><span class="qa-open-label">${esc(label)}</span><span class="qa-open-val">${esc(v)}</span></div>`;
+      };
+
+      // section builder
+      const section = (icon, title, content) => `
+        <div class="section">
+          <div class="section-title"><span class="section-icon">${icon}</span>${esc(title)}</div>
+          <div class="qa-grid">${content}</div>
+        </div>`;
+
+      // companies
+      const companyFields = [
+        'Qual loja mais costuma comprar pela internet?',
+        'Qual banco utiliza?','Se sim,  em qual banco é o empréstimo?',
+        'Onde ou com quem são as outras dívidas?',
+        'Qual serviço de telefonia utiliza?','Qual prestadora de internet utiliza?',
+        'Qual prestadora de água?',
+      ];
+      const companies = [...new Set(
+        companyFields.flatMap(k => val(k).split(/[,;]/)).map(s=>s.trim()).filter(Boolean)
+      )];
+
+      const statusCls = status === 'Concluída' ? 'status-ok' : status === 'Parcialmente concluída' ? 'status-partial' : 'status-info';
+
+      const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Ficha do Cidadão — ${esc(nome)}</title>
+<style>
+@page { size: A4 portrait; margin: 10mm 12mm 12mm 12mm; }
+@media print {
+  .no-print { display: none !important; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 9.5px;
+  line-height: 1.45;
+  background: #fff;
+  color: #1e293b;
+}
+
+/* ── HEADER ── */
+.doc-header {
+  background: linear-gradient(135deg, #004c99 0%, #0066cc 65%, #3b82f6 100%);
+  color: #fff;
+  border-radius: 12px;
+  padding: 7mm 9mm 6mm;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 5mm;
+  box-shadow: 0 4px 18px rgba(15,23,42,0.12);
+}
+.doc-header::after {
+  content: '';
+  position: absolute; left:0; right:0; bottom:0; height:3px;
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 50%, #f59e0b 100%);
+}
+.doc-header-top {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+}
+.brand { display: flex; align-items: center; gap: 9px; }
+.brand-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: rgba(255,255,255,0.18);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px;
+}
+.brand-name { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; line-height:1.2; }
+.brand-sub { font-size: 7.5px; font-weight: 400; opacity: 0.88; margin-top: 1px; }
+.doc-meta { text-align: right; font-size: 7.5px; line-height: 1.5; opacity: 0.9; }
+.doc-meta .sala-badge {
+  display: inline-block; background: rgba(255,255,255,0.18);
+  border-radius: 20px; padding: 2px 9px; font-weight: 600; font-size: 7.5px;
+  margin-bottom: 3px;
+}
+.doc-title-block { margin-top: 5mm; }
+.doc-title { font-size: 14px; font-weight: 800; letter-spacing: -0.01em; }
+.doc-subtitle { font-size: 8px; opacity: 0.88; margin-top: 2px; }
+
+/* ── DADOS PESSOAIS ── */
+.personal-card {
+  background: rgba(255,255,255,0.12);
+  border-top: 1px solid rgba(255,255,255,0.2);
+  margin-top: 5mm;
+  padding: 4mm 0 1mm;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 5px 16px;
+}
+.pf { display: flex; flex-direction: column; }
+.pf-label { font-size: 6.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; opacity: 0.72; }
+.pf-value { font-size: 8.5px; font-weight: 500; }
+.pf.span3 { grid-column: span 3; }
+
+/* ── META BAR ── */
+.meta-bar {
+  display: flex; gap: 14px; align-items: center;
+  background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 8px; padding: 5px 12px;
+  font-size: 7.5px; color: #64748b;
+  margin-bottom: 5mm;
+}
+.meta-bar .sep { color: #cbd5e1; }
+.status-ok    { display:inline-block; background:#d1fae5; color:#065f46; border-radius:20px; padding:1px 8px; font-weight:700; }
+.status-partial { display:inline-block; background:#fef3c7; color:#92400e; border-radius:20px; padding:1px 8px; font-weight:700; }
+.status-info  { display:inline-block; background:#dbeafe; color:#1d4ed8; border-radius:20px; padding:1px 8px; font-weight:700; }
+
+/* ── SECTIONS ── */
+.section { margin-bottom: 5mm; }
+.section-title {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 7.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em;
+  color: #0066cc;
+  border-bottom: 1.5px solid #dbeafe;
+  padding-bottom: 3px; margin-bottom: 4px;
+}
+.section-icon { font-size: 11px; }
+.qa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+.qa-row {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+  background: #f8fafc; border: 1px solid #f1f5f9;
+  border-radius: 6px; padding: 4px 8px;
+}
+.qa-q { color: #475569; flex: 1; line-height: 1.35; }
+.qa-a { flex-shrink: 0; font-weight: 600; }
+.qa-text { color: #334155; }
+.qa-open {
+  grid-column: 1/-1;
+  background: #f1f5f9; border: 1px solid #e2e8f0;
+  border-radius: 6px; padding: 4px 8px;
+}
+.qa-open-label {
+  display: block; font-size: 6.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; margin-bottom: 2px;
+}
+.qa-open-val { color: #334155; }
+.pill {
+  display: inline-block; border-radius: 20px; padding: 1px 7px;
+  font-size: 7.5px; font-weight: 700;
+}
+.pill.positive { background: #d1fae5; color: #065f46; }
+.pill.negative { background: #fee2e2; color: #991b1b; }
+.pill.neutral  { background: #f1f5f9; color: #64748b; }
+
+/* ── COMPANIES ── */
+.companies-block { margin-bottom: 5mm; }
+.companies-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.company-tag {
+  background: #fef3c7; color: #92400e;
+  border-radius: 20px; padding: 2px 10px;
+  font-size: 7.5px; font-weight: 700;
+}
+
+/* ── FOOTER ── */
+.doc-footer {
+  margin-top: 6mm; padding-top: 3mm;
+  border-top: 1px solid #e2e8f0;
+  display: flex; justify-content: space-between;
+  font-size: 7px; color: #94a3b8;
+}
+
+/* ── PRINT BUTTON ── */
+.print-bar {
+  position: fixed; bottom: 20px; right: 20px;
+  display: flex; gap: 10px; z-index: 999;
+}
+.btn-print {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 10px 22px;
+  background: linear-gradient(135deg, #0066cc, #004c99);
+  color: white; border: none; border-radius: 10px;
+  font-size: 13px; font-weight: 600; font-family: inherit;
+  cursor: pointer; box-shadow: 0 4px 16px rgba(0,102,204,0.4);
+  transition: all 0.2s;
+}
+.btn-print:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,102,204,0.5); }
+.btn-close {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 10px 18px;
+  background: #fff; color: #334155;
+  border: 1.5px solid #e2e8f0; border-radius: 10px;
+  font-size: 13px; font-weight: 600; font-family: inherit;
+  cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+</style>
+</head>
+<body>
+
+<!-- Print controls -->
+<div class="print-bar no-print">
+  <button class="btn-close" onclick="window.close()">✕ Fechar</button>
+  <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+</div>
+
+<!-- Header / capa -->
+<div class="doc-header">
+  <div class="doc-header-top">
+    <div class="brand">
+      <div class="brand-icon">🛡️</div>
+      <div>
+        <div class="brand-name">Procon Carioca</div>
+        <div class="brand-sub">Secretaria Municipal de Defesa do Consumidor</div>
+      </div>
+    </div>
+    <div class="doc-meta">
+      <div class="sala-badge">🏢 ${esc(sala)}</div><br>
+      📅 ${esc(dataPesqFmt)} &nbsp;|&nbsp; Gerado em: ${esc(nowDT)}
+    </div>
+  </div>
+  <div class="doc-title-block">
+    <div class="doc-title">Ficha Individual do Cidadão</div>
+    <div class="doc-subtitle">Extrato completo da entrevista realizada em campo — ${esc(area)}</div>
+  </div>
+
+  <!-- Dados pessoais dentro do header -->
+  <div class="personal-card">
+    <div class="pf">
+      <span class="pf-label">Nome Completo</span>
+      <span class="pf-value" style="font-size:10px;font-weight:700">${esc(nome)}</span>
+    </div>
+    <div class="pf">
+      <span class="pf-label">CPF</span>
+      <span class="pf-value">${esc(cpf)}</span>
+    </div>
+    <div class="pf">
+      <span class="pf-label">Data de Nascimento</span>
+      <span class="pf-value">${esc(nascFmt)}</span>
+    </div>
+    <div class="pf">
+      <span class="pf-label">Telefone</span>
+      <span class="pf-value">${esc(telefone)}</span>
+    </div>
+    <div class="pf">
+      <span class="pf-label">E-mail</span>
+      <span class="pf-value">${esc(email)}</span>
+    </div>
+    <div class="pf span3">
+      <span class="pf-label">Endereço</span>
+      <span class="pf-value">${esc(endereco)}</span>
+    </div>
+  </div>
+</div>
+
+<!-- Meta bar -->
+<div class="meta-bar">
+  <span>👤 Agente: <strong>${esc(agente)}</strong></span>
+  <span class="sep">|</span>
+  <span>🏢 ${esc(sala)}</span>
+  <span class="sep">|</span>
+  <span>📍 ${esc(area)}</span>
+  <span class="sep">|</span>
+  <span>Status: <span class="${statusCls}">${esc(status)}</span></span>
+</div>
+
+<!-- Seções de perguntas -->
+${section('🎓','Conhecimento dos Direitos do Consumidor',
+  qaRow('Conhece seus direitos em Defesa do Consumidor?','Conhece seus direitos em Defesa do Consumidor? ') +
+  qaRow('Conhece o Código de Defesa do Consumidor (CDC)?','Conhece  Código de Defesa do Consumidor (CDC)?  ') +
+  qaRow('Conhece a Secretaria Municipal de Defesa do Consumidor?','Conhece a Secretaria Municipal de Defesa do Consumidor ?  ') +
+  qaRow('Conhece o Procon Municipal (Carioca)?','Conhece o Procon Municipal (Carioca)? ') +
+  qaRow('Sabe pedir ajuda ao Procon Carioca?','Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo? ')
+)}
+
+${section('🛒','Internet e Compras Online',
+  qaRow('Utiliza a internet?','Utiliza a internet? ') +
+  qaRow('Faz compras pela internet?','Faz compras pela internet? ') +
+  qaPlain('Loja principal','Qual loja mais costuma comprar pela internet?') +
+  qaRow('Problema com essa loja?','Já teve problema com essa loja? ') +
+  qaOpen('Tipo de problema (loja online)','Se sim, qual tipo de problema? ')
+)}
+
+${section('🏦','Instituição e Educação Financeira',
+  qaRow('Possui conta bancária?','Possui conta bancária? ') +
+  qaPlain('Banco(s) utilizado(s)','Qual banco utiliza?') +
+  qaRow('Problema com o banco?','Já teve problema com ele? ') +
+  qaOpen('Tipo de problema (banco)','Se sim,  Qual tipo de problema? ') +
+  qaRow('Possui empréstimo consignado?','Possui empréstimo consignado? ') +
+  qaPlain('Banco do empréstimo','Se sim,  em qual banco é o empréstimo?') +
+  qaRow('Salário cobre as despesas?','Seu salário cobre suas despesas? ') +
+  qaRow('Fica dívida para o mês seguinte?','Fica dívida para o mês seguinte? ') +
+  qaRow('Possui outras dívidas?','Possui outras dívidas? ') +
+  qaOpen('Com quem são as dívidas','Onde ou com quem são as outras dívidas? ') +
+  qaRow('Nome no SCPC / Serasa?','Possui nome no SCPC, Serasa ou semelhantes? ') +
+  qaRow('Interesse em renegociar?','Se sim, possui interesse em renegociar as dívidas? ')
+)}
+
+${section('📱','Serviços de Telefonia e Internet',
+  qaPlain('Operadora de telefonia','Qual serviço de telefonia utiliza?') +
+  qaRow('Problema com a operadora?','Já teve problema com essa Operadora? ') +
+  qaOpen('Tipo de problema (telefonia)','Se sim, qual tipo de problema?') +
+  qaPlain('Provedor de internet','Qual prestadora de internet utiliza?') +
+  qaRow('Problema com a provedora?','Já teve problema com essa  provedora? ') +
+  qaOpen('Tipo de problema (internet)','Se sim, qual tipo de problema? 2')
+)}
+
+${section('⚡','Serviços Essenciais (Água e Luz)',
+  qaRow('Possui fornecimento de água e energia?','Possui fornecimento de água e energia elétrica? ') +
+  qaPlain('Prestadora de água','Qual prestadora de água?') +
+  qaRow('Problema com concessionária de água?','Já teve problema com a concessionária? ') +
+  qaOpen('Tipo de problema (água)','Se sim, qual tipo de problema? 3') +
+  qaRow('Problema com concessionária de energia?','Já teve problema com a concessionária de energia elétrica? ') +
+  qaOpen('Tipo de problema (energia)','Se sim, qual tipo de problema? 4')
+)}
+
+${section('🔥','Gás',
+  qaRow('Possui gás encanado ou botijão?','Possui gás encanado ou em botijão? ') +
+  qaRow('Problema com o gás?','Teve algum problema com o serviço de gás? ') +
+  qaOpen('Tipo de problema (gás)','Se sim, qual tipo de problema? 5')
+)}
+
+${companies.length > 0 ? `
+<div class="companies-block">
+  <div class="section-title" style="font-size:7.5px;font-weight:800;text-transform:uppercase;letter-spacing:0.07em;color:#0066cc;border-bottom:1.5px solid #dbeafe;padding-bottom:3px;margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+    <span>⚠️</span> Empresas Mencionadas
+  </div>
+  <div class="companies-list">
+    ${companies.map(c => `<span class="company-tag">${esc(c)}</span>`).join('')}
+  </div>
+</div>` : ''}
+
+<div class="doc-footer">
+  <span>Procon Carioca — Secretaria Municipal de Defesa do Consumidor</span>
+  <span>Gerado em: ${esc(nowDT)}</span>
+</div>
+
+</body>
+</html>`;
+
+      const printWindow = window.open('', '_blank', 'width=900,height=800');
+      if (!printWindow) {
+        alert('Não foi possível abrir a janela. Verifique se o navegador bloqueou pop-ups.');
+        return;
+      }
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
     }
 
     // Close on overlay click
@@ -3324,7 +3726,11 @@ window.onload = function() {
 
       <div class="citizen-modal-footer">
         <span>Procon Carioca — Secretaria Municipal de Defesa do Consumidor</span>
-        <span id="citizenModalTimestamp"></span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn-pdf-print" id="citizenPdfBtn" title="Visualizar e imprimir a ficha em PDF">
+            🖨️ Visualizar / Imprimir PDF
+          </button>
+        </div>
       </div>
     </div>
   </div>
