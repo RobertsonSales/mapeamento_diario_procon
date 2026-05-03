@@ -284,6 +284,84 @@
       transform: scale(1.1);
     }
 
+    /* Ver Todas as Fichas button */
+    .btn-ver-todas {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 7px 16px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      border: none; border-radius: var(--radius-sm);
+      font-size: 0.8rem; font-weight: 600; font-family: inherit;
+      cursor: pointer;
+      box-shadow: 0 3px 10px rgba(0,102,204,0.3);
+      transition: all 0.2s;
+      white-space: nowrap;
+      margin-left: auto;
+    }
+    .btn-ver-todas:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 5px 14px rgba(0,102,204,0.4);
+    }
+    .btn-ver-todas:active { transform: translateY(0); }
+
+    /* Modal navigation bar */
+    .citizen-modal-nav {
+      background: var(--gray-50);
+      border-top: 1px solid var(--gray-200);
+      padding: 10px 28px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+      gap: 12px;
+    }
+    .citizen-nav-counter {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--gray-600);
+      white-space: nowrap;
+    }
+    .citizen-nav-counter span {
+      color: var(--primary);
+      font-weight: 700;
+    }
+    .citizen-nav-btns {
+      display: flex; gap: 8px; align-items: center;
+    }
+    .btn-nav-arrow {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 16px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius-sm);
+      background: white;
+      color: var(--gray-700);
+      font-size: 0.82rem; font-weight: 600; font-family: inherit;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .btn-nav-arrow:hover:not(:disabled) {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .btn-nav-arrow:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .btn-nav-close {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 16px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: var(--gray-100);
+      color: var(--gray-600);
+      font-size: 0.82rem; font-weight: 600; font-family: inherit;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .btn-nav-close:hover {
+      background: var(--gray-200);
+      color: var(--gray-800);
+    }
+
     body {
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
       background: var(--gray-50);
@@ -1183,8 +1261,11 @@
     </div>
 
     <!-- Tabela -->
-    <div class="section-title dados animate-in">
+    <div class="section-title dados animate-in" style="display:flex;align-items:center;gap:10px;">
       <div class="icon">📋</div><span>Registros Detalhados</span>
+      <button class="btn-ver-todas" id="btnVerTodas" onclick="abrirTodasFichas()" title="Navegar pelas fichas de todos os entrevistados listados">
+        👁 Ver Todas as Fichas
+      </button>
     </div>
     <div class="table-wrapper animate-in delay-1">
       <div class="table-scroll">
@@ -1210,6 +1291,7 @@
     let rawData = [];
     let filteredData = [];
     const chartInstances = {};
+    let currentModalIndex = -1;
 
     // ═══════════════════════════════════════════════════════════════
     // CHART.JS CONFIG
@@ -1483,7 +1565,7 @@
       filtersExpanded = !filtersExpanded;
       if (filtersExpanded) {
         bar.classList.add('expanded');
-        btn.innerHTML = 'Recolher <span class="filters-toggle-chevron" style="transform:rotate(180deg)">▾</span>';
+        btn.innerHTML = 'Recolher Filtros<span class="filters-toggle-chevron" style="transform:rotate(180deg)">▾</span>';
       } else {
         bar.classList.remove('expanded');
         btn.innerHTML = 'Expandir <span class="filters-toggle-chevron">▾</span>';
@@ -3436,6 +3518,14 @@ window.onload = function() {
       overlay.classList.add('open');
       document.body.style.overflow = 'hidden';
 
+      // Track current index and update navigation controls
+      currentModalIndex = rowIndex;
+      const total = filteredData.length;
+      document.getElementById('navIndexLabel').textContent = rowIndex + 1;
+      document.getElementById('navTotalLabel').textContent = total;
+      document.getElementById('btnNavPrev').disabled = rowIndex <= 0;
+      document.getElementById('btnNavNext').disabled = rowIndex >= total - 1;
+
       // Wire PDF button to this specific row
       const pdfBtn = document.getElementById('citizenPdfBtn');
       if (pdfBtn) {
@@ -3447,6 +3537,27 @@ window.onload = function() {
     function closeCitizenModal() {
       document.getElementById('citizenModalOverlay').classList.remove('open');
       document.body.style.overflow = '';
+    }
+
+    function navigateModal(direction) {
+      const next = currentModalIndex + direction;
+      if (next >= 0 && next < filteredData.length) {
+        // Scroll modal body back to top before loading next record
+        const body = document.getElementById('citizenModalBody');
+        if (body) body.scrollTop = 0;
+        openCitizenModal(next);
+      }
+    }
+
+    function abrirTodasFichas() {
+      if (!filteredData.length) {
+        alert('Nenhum registro disponível para visualizar.');
+        return;
+      }
+      // Scroll modal body to top on initial open
+      const body = document.getElementById('citizenModalBody');
+      if (body) body.scrollTop = 0;
+      openCitizenModal(0);
     }
 
     // ── PDF da Ficha do Cidadão ──────────────────────────────────
@@ -3839,7 +3950,10 @@ ${companies.length > 0 ? `
         if (e.target === document.getElementById('citizenModalOverlay')) closeCitizenModal();
       });
       document.addEventListener('keydown', (e) => {
+        if (!document.getElementById('citizenModalOverlay').classList.contains('open')) return;
         if (e.key === 'Escape') closeCitizenModal();
+        if (e.key === 'ArrowLeft')  navigateModal(-1);
+        if (e.key === 'ArrowRight') navigateModal(1);
       });
     });
   </script>
@@ -3865,6 +3979,17 @@ ${companies.length > 0 ? `
       <div class="citizen-modal-meta" id="citizenModalMeta"></div>
 
       <div class="citizen-modal-body" id="citizenModalBody"></div>
+
+      <div class="citizen-modal-nav" id="citizenModalNav">
+        <div class="citizen-nav-btns">
+          <button class="btn-nav-arrow" id="btnNavPrev" onclick="navigateModal(-1)" title="Ficha anterior">← Anterior</button>
+          <button class="btn-nav-arrow" id="btnNavNext" onclick="navigateModal(1)" title="Próxima ficha">Próxima →</button>
+        </div>
+        <div class="citizen-nav-counter" id="citizenNavCounter">
+          Ficha <span id="navIndexLabel">—</span> de <span id="navTotalLabel">—</span>
+        </div>
+        <button class="btn-nav-close" onclick="closeCitizenModal()">✕ Fechar</button>
+      </div>
 
       <div class="citizen-modal-footer">
         <span>Procon Carioca — Secretaria Municipal de Defesa do Consumidor</span>
