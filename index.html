@@ -489,7 +489,6 @@
     .filters-bar {
       background: white;
       border-bottom: 1px solid var(--gray-200);
-      padding: 16px 32px;
       position: sticky;
       top: 76px;
       z-index: 90;
@@ -497,6 +496,95 @@
       display: none;
     }
     .filters-bar.visible { display: block; }
+
+    /* Filters toggle header */
+    .filters-toggle-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 32px;
+      cursor: pointer;
+      user-select: none;
+      gap: 16px;
+      background: white;
+    }
+    .filters-toggle-header:hover { background: var(--gray-50); }
+    .filters-toggle-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.825rem;
+      font-weight: 600;
+      color: var(--gray-600);
+    }
+    .filters-toggle-icon {
+      width: 26px; height: 26px;
+      background: var(--primary-light);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+    }
+    .filters-active-pills {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: nowrap;
+      overflow: hidden;
+    }
+    .filter-active-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 10px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border-radius: 100px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .filters-toggle-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .filters-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      background: var(--gray-100);
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius-sm);
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--gray-600);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .filters-toggle-btn:hover { background: var(--gray-200); color: var(--gray-800); }
+    .filters-toggle-chevron {
+      font-size: 12px;
+      transition: transform 0.25s ease;
+      display: inline-block;
+    }
+    .filters-bar.expanded .filters-toggle-chevron { transform: rotate(180deg); }
+
+    /* Collapsible filters body */
+    .filters-body {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border-top: 1px solid var(--gray-100);
+    }
+    .filters-bar.expanded .filters-body {
+      max-height: 160px;
+    }
+    .filters-inner {
+      padding: 12px 32px 14px;
+    }
     .filters-inner {
       max-width: 1600px;
       margin: 0 auto;
@@ -919,39 +1007,55 @@
 
   <!-- Filters Bar -->
   <div class="filters-bar" id="filtersBar">
-    <div class="filters-inner">
-      <div class="filter-group">
-        <span class="filter-label">Agente</span>
-        <select class="filter-select" id="filterAgente"><option value="">Todos</option></select>
+    <!-- Collapsible toggle header -->
+    <div class="filters-toggle-header" onclick="toggleFilters()">
+      <div class="filters-toggle-left">
+        <div class="filters-toggle-icon">🔎</div>
+        <span>Filtros</span>
+        <div class="filters-active-pills" id="filterActivePills"></div>
       </div>
-      <div class="filter-group">
-        <span class="filter-label">Sala</span>
-        <select class="filter-select" id="filterSala"><option value="">Todas</option></select>
+      <div class="filters-toggle-right">
+        <div class="results-count" style="margin:0">Exibindo <strong id="resultCount">0</strong> registros</div>
+        <button class="filters-toggle-btn" onclick="event.stopPropagation();exportarPDF()" style="background:var(--primary);color:white;border-color:var(--primary);">📄 PDF</button>
+        <button class="filters-toggle-btn" onclick="event.stopPropagation();exportarExtrato()" style="background:#0f7b5c;color:white;border-color:#0f7b5c;">📋 Extrato</button>
+        <button class="filters-toggle-btn" id="filtersChevronBtn">
+          Expandir <span class="filters-toggle-chevron">▾</span>
+        </button>
       </div>
-      <div class="filter-group">
-        <span class="filter-label">Área</span>
-        <select class="filter-select" id="filterArea"><option value="">Todas</option></select>
+    </div>
+    <!-- Collapsible body -->
+    <div class="filters-body" id="filtersBody">
+      <div class="filters-inner">
+        <div class="filter-group">
+          <span class="filter-label">Agente</span>
+          <select class="filter-select" id="filterAgente"><option value="">Todos</option></select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">Sala</span>
+          <select class="filter-select" id="filterSala"><option value="">Todas</option></select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">Área</span>
+          <select class="filter-select" id="filterArea"><option value="">Todas</option></select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">Status</span>
+          <select class="filter-select" id="filterStatus"><option value="">Todos</option></select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">Buscar</span>
+          <input type="text" class="filter-input" id="filterBusca" placeholder="Nome, CPF, endereço...">
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">Período de</span>
+          <input type="date" class="filter-input" id="filterDataInicio" style="min-width:140px">
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">até</span>
+          <input type="date" class="filter-input" id="filterDataFim" style="min-width:140px">
+        </div>
+        <button class="btn-clear" onclick="limparFiltros()">Limpar Filtros</button>
       </div>
-      <div class="filter-group">
-        <span class="filter-label">Status</span>
-        <select class="filter-select" id="filterStatus"><option value="">Todos</option></select>
-      </div>
-      <div class="filter-group">
-        <span class="filter-label">Buscar</span>
-        <input type="text" class="filter-input" id="filterBusca" placeholder="Nome, CPF, endereço...">
-      </div>
-      <div class="filter-group">
-        <span class="filter-label">Período de</span>
-        <input type="date" class="filter-input" id="filterDataInicio" style="min-width:140px">
-      </div>
-      <div class="filter-group">
-        <span class="filter-label">até</span>
-        <input type="date" class="filter-input" id="filterDataFim" style="min-width:140px">
-      </div>
-      <button class="btn-clear" onclick="limparFiltros()">Limpar Filtros</button>
-      <button class="btn-clear" onclick="exportarPDF()" style="background: var(--primary); color: white; border-color: var(--primary);">📄 Exportar PDF</button>
-      <button class="btn-clear" onclick="exportarExtrato()" style="background: #0f7b5c; color: white; border-color: #0f7b5c;">📋 Extrato Sumarizado</button>
-      <div class="results-count">Exibindo <strong id="resultCount">0</strong> registros</div>
     </div>
   </div>
 
@@ -1205,12 +1309,7 @@
       applyFilters();
     }
 
-    const HEADER_ALIASES = {
-      'Se sim, qual tipo de problema? 2': 'Se sim, qual tipo de problema?.2',
-      'Se sim, qual tipo de problema? 3': 'Se sim, qual tipo de problema?.3',
-      'Se sim, qual tipo de problema? 4': 'Se sim, qual tipo de problema?.4',
-      'Se sim, qual tipo de problema? 5': 'Se sim, qual tipo de problema?.5',
-    };
+    const HEADER_ALIASES = {};  // New form uses unique column names — no aliases needed
 
     function canonicalHeaderName(header) {
       // Trim ALL trailing/leading spaces — the Google Form export adds trailing spaces to column headers
@@ -1320,7 +1419,7 @@
       uniqueValues(rawData, 'Nome do Agente').forEach(a => selAgente.innerHTML += `<option value="${a}">${a}</option>`);
       uniqueValues(rawData, 'Sala do Consumidor').forEach(s => selSala.innerHTML += `<option value="${s}">${s}</option>`);
       uniqueValues(rawData, 'Área de mapeamento').forEach(a => selArea.innerHTML += `<option value="${a}">${a}</option>`);
-      uniqueValues(rawData, 'Coluna 48').forEach(s => selStatus.innerHTML += `<option value="${s}">${s}</option>`);
+      uniqueValues(rawData, 'Marque para concluir e enviar a pesquisa.').forEach(s => selStatus.innerHTML += `<option value="${s}">${s}</option>`);
     }
 
     function applyFilters() {
@@ -1336,7 +1435,7 @@
         if (agente && d['Nome do Agente'] !== agente) return false;
         if (sala && d['Sala do Consumidor'] !== sala) return false;
         if (area && d['Área de mapeamento'] !== area) return false;
-        if (status && d['Coluna 48'] !== status) return false;
+        if (status && d['Marque para concluir e enviar a pesquisa.'] !== status) return false;
         if (busca) {
           const searchable = Object.values(d).join(' ').toLowerCase();
           if (!searchable.includes(busca)) return false;
@@ -1356,6 +1455,7 @@
       document.getElementById('resultCount').textContent = filteredData.length;
       document.getElementById('headerTotal').textContent = filteredData.length + ' pesquisa' + (filteredData.length !== 1 ? 's' : '');
 
+      updateActivePills();
       renderAll();
     }
 
@@ -1375,6 +1475,41 @@
       if (el) el.addEventListener('input', applyFilters);
     });
 
+    // ── Collapsible Filters ───────────────────────────────────────
+    let filtersExpanded = false;
+    function toggleFilters() {
+      const bar = document.getElementById('filtersBar');
+      const btn = document.getElementById('filtersChevronBtn');
+      filtersExpanded = !filtersExpanded;
+      if (filtersExpanded) {
+        bar.classList.add('expanded');
+        btn.innerHTML = 'Recolher <span class="filters-toggle-chevron" style="transform:rotate(180deg)">▾</span>';
+      } else {
+        bar.classList.remove('expanded');
+        btn.innerHTML = 'Expandir <span class="filters-toggle-chevron">▾</span>';
+      }
+    }
+
+    function updateActivePills() {
+      const pills = document.getElementById('filterActivePills');
+      if (!pills) return;
+      const active = [];
+      const agente = document.getElementById('filterAgente').value;
+      const sala = document.getElementById('filterSala').value;
+      const area = document.getElementById('filterArea').value;
+      const status = document.getElementById('filterStatus').value;
+      const busca = document.getElementById('filterBusca').value;
+      const di = document.getElementById('filterDataInicio').value;
+      const df = document.getElementById('filterDataFim').value;
+      if (agente) active.push(`👤 ${agente}`);
+      if (sala) active.push(`🏢 ${sala}`);
+      if (area) active.push(`📍 ${area}`);
+      if (status) active.push(`✅ ${status}`);
+      if (busca) active.push(`🔍 "${busca}"`);
+      if (di || df) active.push(`📅 ${di||'…'} → ${df||'…'}`);
+      pills.innerHTML = active.slice(0,4).map(t => `<span class="filter-active-pill">${t}</span>`).join('');
+    }
+
 
     // ═══════════════════════════════════════════════════════════════
     // EXPORTAR PDF (A4 Paisagem)
@@ -1390,11 +1525,11 @@
       const conheceCDC = countBy(filteredData, 'Conhece  Código de Defesa do Consumidor (CDC)?', 'Sim');
       const conheceProcon = countBy(filteredData, 'Conhece o Procon Municipal (Carioca)?', 'Sim');
       const sabePedir = countBy(filteredData, 'Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo?', 'Sim');
-      const problemaBanco = countBy(filteredData, 'Já teve problema com ele?', 'Sim');
+      const problemaBanco = countBy(filteredData, 'Já teve problema com esse banco?', 'Sim');
       const problemaOperadora = countBy(filteredData, 'Já teve problema com essa Operadora?', 'Sim');
       const problemaProvedora = countBy(filteredData, 'Já teve problema com essa  provedora?', 'Sim');
       const temDividas = countBy(filteredData, 'Possui outras dívidas?', 'Sim');
-      const nomeSPC = countBy(filteredData, 'Possui nome no SCPC, Serasa ou semelhantes?', 'Sim');
+      const nomeSPC = countBy(filteredData, 'Possui nome no SCP, Serasa ou semelhantes?', 'Sim');
       const emprestimo = countBy(filteredData, 'Possui empréstimo consignado?', 'Sim');
       const compraInternet = countBy(filteredData, 'Faz compras pela internet?', 'Sim');
 
@@ -1410,12 +1545,12 @@
       const problemas = {};
       const camposProb = [
         { key: 'Se sim, qual tipo de problema?', label: 'Loja Online' },
-        { key: 'Se sim,  Qual tipo de problema?', label: 'Banco' },
-        { key: 'Se sim, qual tipo de problema?.1', label: 'Operadora' },
-        { key: 'Se sim, qual tipo de problema?.2', label: 'Provedora Internet' },
-        { key: 'Se sim, qual tipo de problema?.3', label: 'Água' },
-        { key: 'Se sim, qual tipo de problema?.4', label: 'Energia' },
-        { key: 'Se sim, qual tipo de problema?.5', label: 'Gás' },
+        { key: 'Que tipo de problema você teve com o banco?', label: 'Banco' },
+        { key: 'Que tipo de problema foi esse?', label: 'Operadora' },
+        { key: 'Que tipo de problema?', label: 'Provedora Internet' },
+        { key: 'Descreva o tipo do problema?', label: 'Água' },
+        { key: 'Como foi esse seu problema com a concessionária?', label: 'Energia' },
+        { key: 'Se sim, informe qual o problema.', label: 'Gás' },
       ];
       camposProb.forEach(c => {
         filteredData.forEach(d => {
@@ -1441,12 +1576,12 @@
         { key: 'Faz compras pela internet?', label: 'Compras', kind: 'tag' },
         { key: 'Possui conta bancária?', label: 'Conta', kind: 'tag' },
         { key: 'Possui outras dívidas?', label: 'Dívidas', kind: 'tag' },
-        { key: 'Possui nome no SCPC, Serasa ou semelhantes?', label: 'SPC/Serasa', kind: 'tag' },
-        { key: 'Qual serviço de telefonia utiliza?', label: 'Telefonia', kind: 'text' },
+        { key: 'Possui nome no SCP, Serasa ou semelhantes?', label: 'SPC/Serasa', kind: 'tag' },
+        { key: 'Qual serviço de telefonia (Operadora) utiliza?', label: 'Telefonia', kind: 'text' },
         { key: 'Qual prestadora de internet utiliza?', label: 'Internet', kind: 'text' },
         { key: 'Já teve problema com a concessionária?', label: 'Prob. Água', kind: 'tag' },
         { key: 'Já teve problema com a concessionária de energia elétrica?', label: 'Prob. Energia', kind: 'tag' },
-        { key: 'Coluna 48', label: 'Status', kind: 'status' },
+        { key: 'Marque para concluir e enviar a pesquisa.', label: 'Status', kind: 'status' },
       ];
 
       const escapeHtml = (value) => String(value ?? '')
@@ -2103,8 +2238,8 @@ window.onload = function() {
       // Empresas com queixas (todos os tipos de problema)
       const empresasMap = {};
       [
-        'Qual banco utiliza?', 'Qual serviço de telefonia utiliza?',
-        'Qual prestadora de internet utiliza?', 'Qual prestadora de água?',
+        'Qual banco utiliza?', 'Qual serviço de telefonia (Operadora) utiliza?',
+        'Qual prestadora de internet utiliza?', 'Qual a concessionária de abastecimento de  água?',
         'Qual loja mais costuma comprar pela internet?'
       ].forEach(key => {
         filteredData.forEach(d => {
@@ -2487,12 +2622,12 @@ window.onload = function() {
         </thead>
         <tbody>
           ${buildRow('Possui conta bancária?', sim('Possui conta bancária?'), nao('Possui conta bancária?'))}
-          ${buildRow('Já teve problema com banco?', sim('Já teve problema com ele?'), nao('Já teve problema com ele?'))}
+          ${buildRow('Já teve problema com banco?', sim('Já teve problema com esse banco?'), nao('Já teve problema com esse banco?'))}
           ${buildRow('Possui empréstimo consignado?', sim('Possui empréstimo consignado?'), nao('Possui empréstimo consignado?'))}
           ${buildRow('Seu salário cobre suas despesas?', sim('Seu salário cobre suas despesas?'), nao('Seu salário cobre suas despesas?'))}
           ${buildRow('Fica dívida para o mês seguinte?', sim('Fica dívida para o mês seguinte?'), nao('Fica dívida para o mês seguinte?'))}
           ${buildRow('Possui outras dívidas?', sim('Possui outras dívidas?'), nao('Possui outras dívidas?'))}
-          ${buildRow('Possui nome no SCPC, Serasa ou semelhantes?', sim('Possui nome no SCPC, Serasa ou semelhantes?'), nao('Possui nome no SCPC, Serasa ou semelhantes?'))}
+          ${buildRow('Possui nome no SCP, Serasa ou semelhantes?', sim('Possui nome no SCP, Serasa ou semelhantes?'), nao('Possui nome no SCP, Serasa ou semelhantes?'))}
           ${buildRow('Possui interesse em renegociar as dívidas?', sim('Se sim, possui interesse em renegociar as dívidas?'), nao('Se sim, possui interesse em renegociar as dívidas?'))}
         </tbody>
       </table>
@@ -2643,11 +2778,11 @@ window.onload = function() {
       const conheceCDC = countBy(filteredData, 'Conhece  Código de Defesa do Consumidor (CDC)?', 'Sim');
       const conheceProcon = countBy(filteredData, 'Conhece o Procon Municipal (Carioca)?', 'Sim');
       const sabePedir = countBy(filteredData, 'Sabe como pedir ajuda ao Procon Carioca para resolver um problema de consumo?', 'Sim');
-      const problemaBanco = countBy(filteredData, 'Já teve problema com ele?', 'Sim');
+      const problemaBanco = countBy(filteredData, 'Já teve problema com esse banco?', 'Sim');
       const problemaOperadora = countBy(filteredData, 'Já teve problema com essa Operadora?', 'Sim');
       const problemaProvedora = countBy(filteredData, 'Já teve problema com essa  provedora?', 'Sim');
       const temDividas = countBy(filteredData, 'Possui outras dívidas?', 'Sim');
-      const nomeSPC = countBy(filteredData, 'Possui nome no SCPC, Serasa ou semelhantes?', 'Sim');
+      const nomeSPC = countBy(filteredData, 'Possui nome no SCP, Serasa ou semelhantes?', 'Sim');
       const emprestimo = countBy(filteredData, 'Possui empréstimo consignado?', 'Sim');
       const compraInternet = countBy(filteredData, 'Faz compras pela internet?', 'Sim');
 
@@ -2778,7 +2913,7 @@ window.onload = function() {
       const divLabels = ['Salário cobre', 'Fica dívida', 'Outras dívidas', 'Nome no SPC', 'Interesse em renegociar', 'Empréstimo'];
       const divSim = [
         salarioSim, dividaSim, outrasDividas,
-        countBy(filteredData, 'Possui nome no SCPC, Serasa ou semelhantes?', 'Sim'),
+        countBy(filteredData, 'Possui nome no SCP, Serasa ou semelhantes?', 'Sim'),
         countBy(filteredData, 'Se sim, possui interesse em renegociar as dívidas?', 'Sim'),
         emprestimoSim,
       ];
@@ -2830,7 +2965,7 @@ window.onload = function() {
 
       // Operadoras - Pizza
       destroyChart('chartOperadoras');
-      const opMap = countMap(filteredData, 'Qual serviço de telefonia utiliza?');
+      const opMap = countMap(filteredData, 'Qual serviço de telefonia (Operadora) utiliza?');
       chartInstances['chartOperadoras'] = new Chart(document.getElementById('chartOperadoras'), {
         type: 'pie',
         data: {
@@ -2874,7 +3009,7 @@ window.onload = function() {
       destroyChart('chartProblemasSetor');
       const psLabels = ['Bancos', 'Operadora', 'Provedora Internet', 'Água', 'Energia', 'Gás'];
       const psSim = [
-        countBy(filteredData, 'Já teve problema com ele?', 'Sim'),
+        countBy(filteredData, 'Já teve problema com esse banco?', 'Sim'),
         countBy(filteredData, 'Já teve problema com essa Operadora?', 'Sim'),
         countBy(filteredData, 'Já teve problema com essa  provedora?', 'Sim'),
         countBy(filteredData, 'Já teve problema com a concessionária?', 'Sim'),
@@ -2950,7 +3085,7 @@ window.onload = function() {
 
       // Status - Pizza
       destroyChart('chartStatus');
-      const statusMap = countMap(filteredData, 'Coluna 48');
+      const statusMap = countMap(filteredData, 'Marque para concluir e enviar a pesquisa.');
       chartInstances['chartStatus'] = new Chart(document.getElementById('chartStatus'), {
         type: 'pie',
         data: {
@@ -2974,12 +3109,12 @@ window.onload = function() {
       const problemas = {};
       const campos = [
         { key: 'Se sim, qual tipo de problema?', label: 'Loja Online', color: COLORS.primary[0] },
-        { key: 'Se sim,  Qual tipo de problema?', label: 'Banco', color: COLORS.danger[0] },
-        { key: 'Se sim, qual tipo de problema?.1', label: 'Operadora', color: COLORS.warning[0] },
-        { key: 'Se sim, qual tipo de problema?.2', label: 'Provedora Internet', color: COLORS.orange[0] },
-        { key: 'Se sim, qual tipo de problema?.3', label: 'Água', color: COLORS.primary[1] },
-        { key: 'Se sim, qual tipo de problema?.4', label: 'Energia', color: COLORS.purple[0] },
-        { key: 'Se sim, qual tipo de problema?.5', label: 'Gás', color: COLORS.teal[0] },
+        { key: 'Que tipo de problema você teve com o banco?', label: 'Banco', color: COLORS.danger[0] },
+        { key: 'Que tipo de problema foi esse?', label: 'Operadora', color: COLORS.warning[0] },
+        { key: 'Que tipo de problema?', label: 'Provedora Internet', color: COLORS.orange[0] },
+        { key: 'Descreva o tipo do problema?', label: 'Água', color: COLORS.primary[1] },
+        { key: 'Como foi esse seu problema com a concessionária?', label: 'Energia', color: COLORS.purple[0] },
+        { key: 'Se sim, informe qual o problema.', label: 'Gás', color: COLORS.teal[0] },
       ];
 
       campos.forEach(c => {
@@ -3033,19 +3168,19 @@ window.onload = function() {
       { key: 'Utiliza a internet?', label: 'Internet', width: '80px', tag: true },
       { key: 'Faz compras pela internet?', label: 'Compras', width: '85px', tag: true },
       { key: 'Possui conta bancária?', label: 'Banco', width: '80px', tag: true },
-      { key: 'Já teve problema com ele?', label: 'Prob. Banco', width: '90px', tag: true },
+      { key: 'Já teve problema com esse banco?', label: 'Prob. Banco', width: '90px', tag: true },
       { key: 'Possui empréstimo consignado?', label: 'Emprést.', width: '90px', tag: true },
       { key: 'Seu salário cobre suas despesas?', label: 'Salário', width: '80px', tag: true },
       { key: 'Possui outras dívidas?', label: 'Dívidas', width: '80px', tag: true },
-      { key: 'Possui nome no SCPC, Serasa ou semelhantes?', label: 'SPC/Serasa', width: '100px', tag: true },
-      { key: 'Qual serviço de telefonia utiliza?', label: 'Telefonia', width: '90px' },
+      { key: 'Possui nome no SCP, Serasa ou semelhantes?', label: 'SPC/Serasa', width: '100px', tag: true },
+      { key: 'Qual serviço de telefonia (Operadora) utiliza?', label: 'Telefonia', width: '90px' },
       { key: 'Já teve problema com essa Operadora?', label: 'Prob. Tel', width: '85px', tag: true },
       { key: 'Qual prestadora de internet utiliza?', label: 'Internet', width: '90px' },
       { key: 'Já teve problema com essa  provedora?', label: 'Prob. Net', width: '85px', tag: true },
       { key: 'Já teve problema com a concessionária?', label: 'Prob. Água', width: '90px', tag: true },
       { key: 'Já teve problema com a concessionária de energia elétrica?', label: 'Prob. Energia', width: '100px', tag: true },
       { key: 'Teve algum problema com o serviço de gás?', label: 'Prob. Gás', width: '85px', tag: true },
-      { key: 'Coluna 48', label: 'Status', width: '130px', status: true },
+      { key: 'Marque para concluir e enviar a pesquisa.', label: 'Status', width: '130px', status: true },
     ];
 
     function renderTable() {
@@ -3147,17 +3282,18 @@ window.onload = function() {
       const area        = val('Área de mapeamento') || '—';
       const dataPesq    = val('Data da pesquisa');
       const dataPesqFmt = dataPesq ? (() => { try { const d = new Date(dataPesq); return isNaN(d) ? dataPesq : d.toLocaleDateString('pt-BR'); } catch(e){ return dataPesq; } })() : '—';
-      const status      = val('Coluna 48') || '—';
+      const status      = val('Marque para concluir e enviar a pesquisa.') || '—';
 
       // ── Companies with complaints ────────────────────────────
       const companyFields = [
         'Qual loja mais costuma comprar pela internet?',
         'Qual banco utiliza?',
-        'Se sim,  em qual banco é o empréstimo?',
+        'Em qual banco está o seu empréstimo?',
         'Onde ou com quem são as outras dívidas?',
-        'Qual serviço de telefonia utiliza?',
+        'Qual serviço de telefonia (Operadora) utiliza?',
         'Qual prestadora de internet utiliza?',
-        'Qual prestadora de água?',
+        'Qual a concessionária de abastecimento de  água?',
+        'Qual a concessionária de energia elétrica?',
       ];
       const mentionedCompanies = companyFields
         .map(k => val(k))
@@ -3223,6 +3359,7 @@ window.onload = function() {
           <div class="citizen-section-title">🛒 Internet e Compras Online</div>
           <div class="citizen-qa-grid">
             ${qa('Utiliza a internet?', 'Utiliza a internet?')}
+            ${qaPlain('Como usa a internet', 'Como você usa a internet?')}
             ${qa('Faz compras pela internet?', 'Faz compras pela internet?')}
             ${qaPlain('Loja principal', 'Qual loja mais costuma comprar pela internet?')}
             ${qa('Já teve problema com essa loja?', 'Já teve problema com essa loja?')}
@@ -3236,15 +3373,15 @@ window.onload = function() {
           <div class="citizen-qa-grid">
             ${qa('Possui conta bancária?', 'Possui conta bancária?')}
             ${qaPlain('Banco(s) utilizado(s)', 'Qual banco utiliza?')}
-            ${qa('Já teve problema com o banco?', 'Já teve problema com ele?')}
-            ${qaText('Tipo de problema (banco)', 'Se sim,  Qual tipo de problema?')}
+            ${qa('Já teve problema com o banco?', 'Já teve problema com esse banco?')}
+            ${qaText('Tipo de problema (banco)', 'Que tipo de problema você teve com o banco?')}
             ${qa('Possui empréstimo consignado?', 'Possui empréstimo consignado?')}
-            ${qaPlain('Banco do empréstimo', 'Se sim,  em qual banco é o empréstimo?')}
+            ${qaPlain('Banco do empréstimo', 'Em qual banco está o seu empréstimo?')}
             ${qa('Salário cobre as despesas?', 'Seu salário cobre suas despesas?')}
             ${qa('Fica dívida para o mês seguinte?', 'Fica dívida para o mês seguinte?')}
             ${qa('Possui outras dívidas?', 'Possui outras dívidas?')}
             ${qaText('Com quem são as dívidas', 'Onde ou com quem são as outras dívidas?')}
-            ${qa('Nome no SCPC / Serasa?', 'Possui nome no SCPC, Serasa ou semelhantes?')}
+            ${qa('Nome no SCPC / Serasa?', 'Possui nome no SCP, Serasa ou semelhantes?')}
             ${qa('Interesse em renegociar?', 'Se sim, possui interesse em renegociar as dívidas?')}
           </div>
         </div>
@@ -3253,12 +3390,12 @@ window.onload = function() {
         <div class="citizen-section">
           <div class="citizen-section-title">📱 Serviços de Telefonia e Internet</div>
           <div class="citizen-qa-grid">
-            ${qaPlain('Operadora de telefonia', 'Qual serviço de telefonia utiliza?')}
+            ${qaPlain('Operadora de telefonia', 'Qual serviço de telefonia (Operadora) utiliza?')}
             ${qa('Problema com a operadora?', 'Já teve problema com essa Operadora?')}
             ${qaText('Tipo de problema (telefonia)', 'Se sim, qual tipo de problema?')}
             ${qaPlain('Provedor de internet', 'Qual prestadora de internet utiliza?')}
             ${qa('Problema com a provedora?', 'Já teve problema com essa  provedora?')}
-            ${qaText('Tipo de problema (internet)', 'Se sim, qual tipo de problema? 2')}
+            ${qaText('Tipo de problema (internet)', 'Que tipo de problema?')}
           </div>
         </div>
 
@@ -3267,11 +3404,12 @@ window.onload = function() {
           <div class="citizen-section-title">⚡ Serviços Essenciais (Água e Luz)</div>
           <div class="citizen-qa-grid">
             ${qa('Possui fornecimento de água e energia?', 'Possui fornecimento de água e energia elétrica?')}
-            ${qaPlain('Prestadora de água', 'Qual prestadora de água?')}
+            ${qaPlain('Prestadora de água', 'Qual a concessionária de abastecimento de  água?')}
             ${qa('Problema com concessionária de água?', 'Já teve problema com a concessionária?')}
-            ${qaText('Tipo de problema (água)', 'Se sim, qual tipo de problema? 3')}
-            ${qa('Problema com concessionária de energia?', 'Já teve problema com a concessionária de energia elétrica?')}
-            ${qaText('Tipo de problema (energia)', 'Se sim, qual tipo de problema? 4')}
+            ${qaText('Tipo de problema (água)', 'Descreva o tipo do problema?')}
+            ${qaPlain('Concessionária de energia', 'Qual a concessionária de energia elétrica?')}
+            ${qa('Problema com concessionária de energia?', 'Já teve problema com essa concessionária de energia elétrica?')}
+            ${qaText('Tipo de problema (energia)', 'Como foi esse seu problema com a concessionária?')}
           </div>
         </div>
 
@@ -3281,7 +3419,7 @@ window.onload = function() {
           <div class="citizen-qa-grid">
             ${qa('Possui gás encanado ou botijão?', 'Possui gás encanado ou em botijão?')}
             ${qa('Já teve problema com o gás?', 'Teve algum problema com o serviço de gás?')}
-            ${qaText('Tipo de problema (gás)', 'Se sim, qual tipo de problema? 5')}
+            ${qaText('Tipo de problema (gás)', 'Se sim, informe qual o problema.')}
           </div>
         </div>
 
@@ -3332,7 +3470,7 @@ window.onload = function() {
       const area        = val('Área de mapeamento') || '—';
       const dataPesq    = val('Data da pesquisa');
       const dataPesqFmt = dataPesq ? (() => { try { const d = new Date(dataPesq); return isNaN(d) ? dataPesq : d.toLocaleDateString('pt-BR'); } catch(e){ return dataPesq; } })() : '—';
-      const status      = val('Coluna 48') || '—';
+      const status      = val('Marque para concluir e enviar a pesquisa.') || '—';
       const nowDT       = new Date().toLocaleString('pt-BR');
 
       // helper builders
@@ -3366,10 +3504,10 @@ window.onload = function() {
       // companies
       const companyFields = [
         'Qual loja mais costuma comprar pela internet?',
-        'Qual banco utiliza?','Se sim,  em qual banco é o empréstimo?',
+        'Qual banco utiliza?','Em qual banco está o seu empréstimo?',
         'Onde ou com quem são as outras dívidas?',
-        'Qual serviço de telefonia utiliza?','Qual prestadora de internet utiliza?',
-        'Qual prestadora de água?',
+        'Qual serviço de telefonia (Operadora) utiliza?','Qual prestadora de internet utiliza?',
+        'Qual a concessionária de abastecimento de  água?',
       ];
       const companies = [...new Set(
         companyFields.flatMap(k => val(k).split(/[,;]/)).map(s=>s.trim()).filter(Boolean)
@@ -3621,6 +3759,7 @@ ${section('🎓','Conhecimento dos Direitos do Consumidor',
 
 ${section('🛒','Internet e Compras Online',
   qaRow('Utiliza a internet?','Utiliza a internet?') +
+  qaPlain('Como usa a internet','Como você usa a internet?') +
   qaRow('Faz compras pela internet?','Faz compras pela internet?') +
   qaPlain('Loja principal','Qual loja mais costuma comprar pela internet?') +
   qaRow('Problema com essa loja?','Já teve problema com essa loja?') +
@@ -3630,40 +3769,40 @@ ${section('🛒','Internet e Compras Online',
 ${section('🏦','Instituição e Educação Financeira',
   qaRow('Possui conta bancária?','Possui conta bancária?') +
   qaPlain('Banco(s) utilizado(s)','Qual banco utiliza?') +
-  qaRow('Problema com o banco?','Já teve problema com ele?') +
-  qaOpen('Tipo de problema (banco)','Se sim,  Qual tipo de problema?') +
+  qaRow('Problema com o banco?','Já teve problema com esse banco?') +
+  qaOpen('Tipo de problema (banco)','Que tipo de problema você teve com o banco?') +
   qaRow('Possui empréstimo consignado?','Possui empréstimo consignado?') +
-  qaPlain('Banco do empréstimo','Se sim,  em qual banco é o empréstimo?') +
+  qaPlain('Banco do empréstimo','Em qual banco está o seu empréstimo?') +
   qaRow('Salário cobre as despesas?','Seu salário cobre suas despesas?') +
   qaRow('Fica dívida para o mês seguinte?','Fica dívida para o mês seguinte?') +
   qaRow('Possui outras dívidas?','Possui outras dívidas?') +
   qaOpen('Com quem são as dívidas','Onde ou com quem são as outras dívidas?') +
-  qaRow('Nome no SCPC / Serasa?','Possui nome no SCPC, Serasa ou semelhantes?') +
+  qaRow('Nome no SCPC / Serasa?','Possui nome no SCP, Serasa ou semelhantes?') +
   qaRow('Interesse em renegociar?','Se sim, possui interesse em renegociar as dívidas?')
 )}
 
 ${section('📱','Serviços de Telefonia e Internet',
-  qaPlain('Operadora de telefonia','Qual serviço de telefonia utiliza?') +
+  qaPlain('Operadora de telefonia','Qual serviço de telefonia (Operadora) utiliza?') +
   qaRow('Problema com a operadora?','Já teve problema com essa Operadora?') +
   qaOpen('Tipo de problema (telefonia)','Se sim, qual tipo de problema?') +
   qaPlain('Provedor de internet','Qual prestadora de internet utiliza?') +
   qaRow('Problema com a provedora?','Já teve problema com essa  provedora?') +
-  qaOpen('Tipo de problema (internet)','Se sim, qual tipo de problema? 2')
+  qaOpen('Tipo de problema (internet)','Que tipo de problema?')
 )}
 
 ${section('⚡','Serviços Essenciais (Água e Luz)',
   qaRow('Possui fornecimento de água e energia?','Possui fornecimento de água e energia elétrica?') +
-  qaPlain('Prestadora de água','Qual prestadora de água?') +
+  qaPlain('Concessionária de água','Qual a concessionária de abastecimento de  água?') +
   qaRow('Problema com concessionária de água?','Já teve problema com a concessionária?') +
-  qaOpen('Tipo de problema (água)','Se sim, qual tipo de problema? 3') +
+  qaOpen('Tipo de problema (água)','Descreva o tipo do problema?') +
   qaRow('Problema com concessionária de energia?','Já teve problema com a concessionária de energia elétrica?') +
-  qaOpen('Tipo de problema (energia)','Se sim, qual tipo de problema? 4')
+  qaOpen('Tipo de problema (energia)','Como foi esse seu problema com a concessionária?')
 )}
 
 ${section('🔥','Gás',
   qaRow('Possui gás encanado ou botijão?','Possui gás encanado ou em botijão?') +
   qaRow('Problema com o gás?','Teve algum problema com o serviço de gás?') +
-  qaOpen('Tipo de problema (gás)','Se sim, qual tipo de problema? 5')
+  qaOpen('Tipo de problema (gás)','Se sim, informe qual o problema.')
 )}
 
 ${companies.length > 0 ? `
