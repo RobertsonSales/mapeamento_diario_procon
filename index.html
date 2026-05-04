@@ -182,7 +182,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 6px;
-    }/
+    }
     .citizen-qa-row {
       display: flex;
       align-items: flex-start;
@@ -1024,22 +1024,155 @@
 
     /* Responsive */
     @media (max-width: 768px) {
-      .header-top { padding: 12px 16px; flex-direction: column; gap: 10px; align-items: flex-start; }
-      .header-meta { text-align: left; }
-      .load-card { padding: 40px 24px; }
+      html, body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+      }
+      body {
+        -webkit-text-size-adjust: 100%;
+      }
+      .header-top {
+        padding: 12px 16px;
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+      }
+      .header-brand,
+      .header-meta,
+      .filters-toggle-left,
+      .filters-toggle-right,
+      .main,
+      .load-area,
+      .load-card,
+      .chart-card,
+      .kpi-card,
+      .problem-item,
+      .table-wrapper {
+        min-width: 0;
+      }
+      .header-meta {
+        text-align: left;
+        width: 100%;
+      }
+      .header-title,
+      .header-subtitle,
+      .chart-title,
+      .problem-text,
+      .kpi-label,
+      .kpi-sub {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+      .load-area { padding: 24px 16px; }
+      .load-card { padding: 32px 20px; }
       .btn-load { min-width: auto; width: 100%; }
-      .filters-bar { padding: 12px 16px; top: auto; position: relative; }
-      .filters-inner { flex-direction: column; align-items: stretch; }
-      .filter-group { width: 100%; }
-      .filter-select, .filter-input { width: 100%; min-width: auto; }
-      .results-count { margin-left: 0; margin-top: 8px; }
+      .filters-bar {
+        top: auto;
+        position: relative;
+      }
+      .filters-toggle-header {
+        padding: 12px 16px;
+        flex-wrap: wrap;
+        align-items: stretch;
+        gap: 10px;
+      }
+      .filters-toggle-left {
+        width: 100%;
+        flex-wrap: wrap;
+      }
+      .filters-active-pills {
+        flex-wrap: wrap;
+        overflow: visible;
+      }
+      .filters-toggle-right {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .filters-toggle-btn {
+        width: 100%;
+        justify-content: center;
+        white-space: normal;
+      }
+      .filters-inner {
+        padding: 12px 16px 14px;
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .filter-group {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .filter-select,
+      .filter-input,
+      input[type="date"].filter-input {
+        width: 100%;
+        min-width: 0 !important;
+      }
+      .btn-clear {
+        width: 100%;
+      }
+      .results-count {
+        margin-left: 0;
+        margin-top: 8px;
+      }
       .main { padding: 16px; }
-      .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
       .kpi-card { padding: 14px; }
       .kpi-value { font-size: 1.5rem; }
-      .charts-grid { grid-template-columns: 1fr; }
+      .charts-grid,
+      .problems-grid { grid-template-columns: 1fr; }
       .chart-card { padding: 16px; }
+      .chart-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
       .chart-container { height: 220px; }
+      .citizen-modal-overlay { padding: 10px; }
+      .citizen-modal { max-height: 92vh; border-radius: 16px; }
+      .citizen-modal-top,
+      .citizen-personal-strip,
+      .citizen-modal-meta,
+      .citizen-modal-body,
+      .citizen-modal-footer {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+      .citizen-personal-strip,
+      .citizen-qa-grid {
+        grid-template-columns: 1fr;
+      }
+      .citizen-modal-meta,
+      .citizen-modal-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .header-icon {
+        width: 38px;
+        height: 38px;
+        font-size: 18px;
+      }
+      .header-title { font-size: 1.05rem; }
+      .header-subtitle { font-size: 0.74rem; }
+      .section-title {
+        align-items: flex-start;
+        font-size: 0.96rem;
+      }
+      .kpi-grid { grid-template-columns: 1fr; }
+      .kpi-value { font-size: 1.35rem; }
+      .chart-container { height: 200px; }
+      th, td {
+        padding-left: 10px;
+        padding-right: 10px;
+      }
     }
   </style>
 </head>
@@ -1097,7 +1230,7 @@
         <button class="filters-toggle-btn" onclick="event.stopPropagation();exportarPDF()" style="background:var(--primary);color:white;border-color:var(--primary);">📄 Visualizar PDF</button>
         <button class="filters-toggle-btn" onclick="event.stopPropagation();exportarExtrato()" style="background:#0f7b5c;color:white;border-color:#0f7b5c;">📋 Extrato Sintético</button>
         <button class="filters-toggle-btn" id="filtersChevronBtn">
-          Expandir Filtros<span class="filters-toggle-chevron">▾</span>
+          Expandir <span class="filters-toggle-chevron">▾</span>
         </button>
       </div>
     </div>
@@ -1282,7 +1415,7 @@
     // ═══════════════════════════════════════════════════════════════
     // CONFIGURAÇÃO DO GOOGLE SHEETS
     // ═══════════════════════════════════════════════════════════════
-    const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRZfCwzAv_r4lt83iFDKsLT3Bfk4YoCCoafHVBkfD1pH8MlIXAcJUtq-PVcFU9zI_2Is3HCdOEMvHPf/pub?output=csv";
+    const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS26nyOdKrq3KzXhf15rJeo-Q5XuRVALPDkDj1jKC1enhPqAmHwsPrBRhYptQE5FL7F7YzWHWqHiD34/pub?gid=907473395&single=true&output=csv";
 
     // ═══════════════════════════════════════════════════════════════
     // DADOS CARREGADOS EXCLUSIVAMENTE ONLINE VIA GOOGLE SHEETS
@@ -4002,5 +4135,6 @@ ${companies.length > 0 ? `
     </div>
   </div>
 
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
