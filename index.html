@@ -123,6 +123,61 @@
       margin-top: 2px;
     }
     .citizen-modal-close:hover { background: rgba(255,255,255,0.28); }
+    .citizen-modal-collapse {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 28px;
+      background: rgba(255,255,255,0.08);
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.96);
+      font-size: 0.82rem;
+      font-weight: 700;
+      font-family: inherit;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .citizen-modal-collapse:hover {
+      background: rgba(255,255,255,0.14);
+    }
+    .citizen-modal-collapse .collapse-copy {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .citizen-modal-collapse .collapse-copy span:first-child {
+      white-space: nowrap;
+    }
+    .citizen-modal-collapse .collapse-hint {
+      font-size: 0.72rem;
+      font-weight: 500;
+      opacity: 0.78;
+      white-space: nowrap;
+    }
+    .citizen-modal-collapse .collapse-icon {
+      font-size: 0.9rem;
+      transition: transform 0.25s ease;
+      flex-shrink: 0;
+    }
+    .citizen-modal-header.collapsed .citizen-modal-collapse .collapse-icon {
+      transform: rotate(180deg);
+    }
+    .citizen-modal-summary {
+      overflow: hidden;
+      max-height: 520px;
+      opacity: 1;
+      transition: max-height 0.28s ease, opacity 0.2s ease;
+    }
+    .citizen-modal-header.collapsed .citizen-modal-summary {
+      max-height: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
 
     /* Personal data strip */
     .citizen-personal-strip {
@@ -1177,7 +1232,7 @@
       .btn-clear,
       .btn-ver-todas,
       .btn-nav-arrow,
-      .btn-nav-close,
+      .citizen-modal-collapse,
       .btn-pdf-print,
       .btn-load {
         min-height: 46px;
@@ -1237,7 +1292,7 @@
         width: 100%;
       }
       .citizen-nav-btns .btn-nav-arrow,
-      .btn-nav-close,
+      .citizen-modal-collapse,
       .btn-pdf-print {
         flex: 1;
         justify-content: center;
@@ -1265,7 +1320,7 @@
       .filters-toggle-btn,
       .btn-ver-todas,
       .btn-nav-arrow,
-      .btn-nav-close,
+      .citizen-modal-collapse,
       .btn-pdf-print {
         width: 100%;
       }
@@ -1538,6 +1593,7 @@
     let filteredData = [];
     const chartInstances = {};
     let currentModalIndex = -1;
+    let citizenHeaderCollapsed = false;
 
     // ═══════════════════════════════════════════════════════════════
     // CHART.JS CONFIG
@@ -3556,6 +3612,24 @@ window.onload = function() {
     // FICHA DO CIDADÃO — MODAL
     // ═══════════════════════════════════════════════════════════════
 
+    function setCitizenHeaderCollapsed(collapsed) {
+      citizenHeaderCollapsed = !!collapsed;
+      const header = document.getElementById('citizenModalHeader');
+      const btn = document.getElementById('citizenModalCollapseBtn');
+      const label = document.getElementById('citizenModalCollapseLabel');
+      const hint = document.getElementById('citizenModalCollapseHint');
+      if (!header || !btn || !label || !hint) return;
+
+      header.classList.toggle('collapsed', citizenHeaderCollapsed);
+      btn.setAttribute('aria-expanded', String(!citizenHeaderCollapsed));
+      label.textContent = citizenHeaderCollapsed ? 'Mostrar dados pessoais' : 'Ocultar dados pessoais';
+      hint.textContent = citizenHeaderCollapsed ? 'Expandir ficha' : 'Recolher ficha';
+    }
+
+    function toggleCitizenHeader() {
+      setCitizenHeaderCollapsed(!citizenHeaderCollapsed);
+    }
+
     function openCitizenModal(rowIndex) {
       const row = filteredData[rowIndex];
       if (!row) return;
@@ -3760,6 +3834,8 @@ window.onload = function() {
           </div>
         </div>` : ''}
       `;
+
+      setCitizenHeaderCollapsed(citizenHeaderCollapsed);
 
       overlay.classList.add('open');
       document.body.style.overflow = 'hidden';
@@ -4208,7 +4284,7 @@ ${companies.length > 0 ? `
   <div class="citizen-modal-overlay" id="citizenModalOverlay">
     <div class="citizen-modal" role="dialog" aria-modal="true" aria-labelledby="citizenModalName">
 
-      <div class="citizen-modal-header">
+      <div class="citizen-modal-header" id="citizenModalHeader">
         <div class="citizen-modal-top">
           <div class="citizen-modal-brand">
             <div class="citizen-modal-logo">🛡️</div>
@@ -4219,10 +4295,18 @@ ${companies.length > 0 ? `
           </div>
           <button class="citizen-modal-close" onclick="closeCitizenModal()" title="Fechar">✕</button>
         </div>
-        <div class="citizen-personal-strip" id="citizenPersonalStrip"></div>
+        <button class="citizen-modal-collapse" id="citizenModalCollapseBtn" type="button" onclick="toggleCitizenHeader()" aria-expanded="true">
+          <span class="collapse-copy">
+            <span id="citizenModalCollapseLabel">Ocultar dados pessoais</span>
+            <span class="collapse-hint" id="citizenModalCollapseHint">Recolher ficha</span>
+          </span>
+          <span class="collapse-icon" aria-hidden="true">▴</span>
+        </button>
+        <div class="citizen-modal-summary" id="citizenModalSummary">
+          <div class="citizen-personal-strip" id="citizenPersonalStrip"></div>
+          <div class="citizen-modal-meta" id="citizenModalMeta"></div>
+        </div>
       </div>
-
-      <div class="citizen-modal-meta" id="citizenModalMeta"></div>
 
       <div class="citizen-modal-body" id="citizenModalBody"></div>
 
@@ -4234,7 +4318,6 @@ ${companies.length > 0 ? `
         <div class="citizen-nav-counter" id="citizenNavCounter">
           Ficha <span id="navIndexLabel">—</span> de <span id="navTotalLabel">—</span>
         </div>
-        <button class="btn-nav-close" onclick="closeCitizenModal()">✕ Fechar</button>
       </div>
 
       <div class="citizen-modal-footer">
@@ -4248,6 +4331,7 @@ ${companies.length > 0 ? `
     </div>
   </div>
 
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
