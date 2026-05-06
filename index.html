@@ -163,7 +163,45 @@
     .citizen-modal-body {
       overflow-y: auto; padding: 24px 28px 28px;
       flex: 1;
+      min-height: 0;
+      scrollbar-gutter: stable;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
     }
+    .citizen-modal-body::-webkit-scrollbar {
+      width: 10px;
+    }
+    .citizen-modal-body::-webkit-scrollbar-track {
+      background: var(--gray-100);
+      border-radius: 999px;
+    }
+    .citizen-modal-body::-webkit-scrollbar-thumb {
+      background: var(--gray-300);
+      border-radius: 999px;
+      border: 2px solid var(--gray-100);
+    }
+    .citizen-modal-body::-webkit-scrollbar-thumb:hover {
+      background: var(--gray-400);
+    }
+
+    .citizen-modal-brand,
+    .citizen-personal-field,
+    .citizen-personal-field .field-value,
+    .citizen-modal-title {
+      min-width: 0;
+    }
+    .citizen-personal-field .field-value,
+    .citizen-modal-title {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .citizen-personal-field--email {
+      grid-column: span 1;
+    }
+    .citizen-personal-field--address {
+      grid-column: span 3;
+    }
+
 
     /* Section blocks inside modal */
     .citizen-section {
@@ -1132,25 +1170,80 @@
         gap: 8px;
       }
       .chart-container { height: 220px; }
+      .section-title {
+        flex-wrap: wrap;
+      }
+      .filters-toggle-btn,
+      .btn-clear,
+      .btn-ver-todas,
+      .btn-nav-arrow,
+      .btn-nav-close,
+      .btn-pdf-print,
+      .btn-load {
+        min-height: 46px;
+      }
+      .filters-toggle-btn {
+        padding: 10px 14px;
+      }
+      .btn-ver-todas {
+        width: 100%;
+        margin-left: 0;
+        justify-content: center;
+        padding: 10px 16px;
+      }
       .citizen-modal-overlay { padding: 10px; }
-      .citizen-modal { max-height: 92vh; border-radius: 16px; }
+      .citizen-modal {
+        max-height: 92vh;
+        border-radius: 16px;
+      }
       .citizen-modal-top,
       .citizen-personal-strip,
       .citizen-modal-meta,
       .citizen-modal-body,
-      .citizen-modal-footer {
+      .citizen-modal-footer,
+      .citizen-modal-nav {
         padding-left: 16px;
         padding-right: 16px;
       }
-      .citizen-personal-strip,
+      .citizen-modal-top {
+        gap: 12px;
+      }
+      .citizen-modal-close {
+        width: 42px;
+        height: 42px;
+      }
+      .citizen-personal-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .citizen-personal-strip > .citizen-personal-field {
+        grid-column: auto !important;
+      }
+      .citizen-personal-strip > .citizen-personal-field--email,
+      .citizen-personal-strip > .citizen-personal-field--address {
+        grid-column: 1 / -1 !important;
+      }
       .citizen-qa-grid {
         grid-template-columns: 1fr;
       }
       .citizen-modal-meta,
-      .citizen-modal-footer {
+      .citizen-modal-footer,
+      .citizen-modal-nav {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
         gap: 8px;
+      }
+      .citizen-nav-btns {
+        width: 100%;
+      }
+      .citizen-nav-btns .btn-nav-arrow,
+      .btn-nav-close,
+      .btn-pdf-print {
+        flex: 1;
+        justify-content: center;
+      }
+      .citizen-nav-counter {
+        text-align: center;
       }
     }
 
@@ -1165,6 +1258,26 @@
       .section-title {
         align-items: flex-start;
         font-size: 0.96rem;
+      }
+      .filters-toggle-header {
+        padding: 10px 12px;
+      }
+      .filters-toggle-btn,
+      .btn-ver-todas,
+      .btn-nav-arrow,
+      .btn-nav-close,
+      .btn-pdf-print {
+        width: 100%;
+      }
+      .citizen-modal-top {
+        align-items: flex-start;
+      }
+      .citizen-modal-brand {
+        flex: 1;
+      }
+      .citizen-personal-strip,
+      .citizen-modal-meta {
+        grid-template-columns: 1fr;
       }
       .kpi-grid { grid-template-columns: 1fr; }
       .kpi-value { font-size: 1.35rem; }
@@ -3538,11 +3651,11 @@ window.onload = function() {
           <span class="field-label">Telefone</span>
           <span class="field-value">${esc(telefone)}</span>
         </div>
-        <div class="citizen-personal-field" style="grid-column:span 1">
+        <div class="citizen-personal-field citizen-personal-field--email">
           <span class="field-label">E-mail</span>
           <span class="field-value">${esc(email)}</span>
         </div>
-        <div class="citizen-personal-field" style="grid-column:span 3">
+        <div class="citizen-personal-field citizen-personal-field--address">
           <span class="field-label">Endereço</span>
           <span class="field-value">${esc(endereco)}</span>
         </div>
@@ -4135,6 +4248,7 @@ ${companies.length > 0 ? `
     </div>
   </div>
 
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
