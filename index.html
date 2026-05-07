@@ -1621,21 +1621,52 @@
     // ═══════════════════════════════════════════════════════════════
     // UTILS
     // ═══════════════════════════════════════════════════════════════
+    function normalizeValue(value) {
+      return (value ?? '').toString().trim();
+    }
+    function getFieldValue(row, key) {
+      if (!row) return '';
+
+      const direct = row[key];
+      if (direct !== undefined && direct !== null && direct !== '') return direct;
+
+      if (key === 'Possui fornecimento de água e energia elétrica?') {
+        const agua = normalizeValue(row['Possui fornecimento de água?']);
+        const energia = normalizeValue(row['Possui energia elétrica em casa?']);
+        if (agua && energia) {
+          if (agua === 'Sim' && energia === 'Sim') return 'Sim';
+          if (agua === 'Não' || energia === 'Não') return 'Não';
+        }
+        return agua || energia || '';
+      }
+
+      const aliases = FIELD_ALIASES[key] || [];
+      for (const alias of aliases) {
+        const aliasValue = row[alias];
+        if (aliasValue !== undefined && aliasValue !== null && aliasValue !== '') return aliasValue;
+      }
+
+      return '';
+    }
     function countBy(data, key, value) {
-      return data.filter(d => d[key] === value).length;
+      const target = normalizeValue(value);
+      return data.filter(d => normalizeValue(getFieldValue(d, key)) === target).length;
     }
     function pct(num, total) {
       return total > 0 ? Math.round((num / total) * 100) : 0;
     }
     function uniqueValues(data, key) {
       const vals = new Set();
-      data.forEach(d => { if (d[key]) vals.add(d[key].toString().trim()); });
+      data.forEach(d => {
+        const v = normalizeValue(getFieldValue(d, key));
+        if (v) vals.add(v);
+      });
       return Array.from(vals).sort();
     }
     function countMap(data, key) {
       const map = {};
       data.forEach(d => {
-        const v = d[key] ? d[key].toString().trim() : '';
+        const v = normalizeValue(getFieldValue(d, key));
         if (v) map[v] = (map[v] || 0) + 1;
       });
       return map;
@@ -1643,7 +1674,7 @@
     function aggregateMulti(data, key) {
       const map = {};
       data.forEach(d => {
-        const v = d[key] ? d[key].toString().trim() : '';
+        const v = normalizeValue(getFieldValue(d, key));
         if (!v) return;
         let parts = v.split(',').map(s => s.trim()).filter(s => s);
         if (parts.length === 1) {
@@ -1652,6 +1683,20 @@
         parts.forEach(p => { map[p] = (map[p] || 0) + 1; });
       });
       return map;
+    }
+    function hasService(row, serviceKey) {
+      if (serviceKey === 'agua') {
+        return normalizeValue(getFieldValue(row, 'Possui fornecimento de água?')) === 'Sim';
+      }
+      if (serviceKey === 'energia') {
+        return normalizeValue(getFieldValue(row, 'Possui energia elétrica em casa?')) === 'Sim';
+      }
+      if (serviceKey === 'gas') {
+        const gas = normalizeValue(getFieldValue(row, 'Possui gás encanado ou em botijão?')).toLowerCase();
+        if (!gas) return false;
+        return !['não', 'nao', 'não possui', 'nao possui', 'não tem', 'nao tem', 'nenhum'].includes(gas);
+      }
+      return false;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -1693,7 +1738,13 @@
       applyFilters();
     }
 
-    const HEADER_ALIASES = {};  // New form uses unique column names — no aliases needed
+    const HEADER_ALIASES = {
+      'Nome do Agente:': 'Nome do Agente'
+    };
+    const FIELD_ALIASES = {
+      'Nome do Agente': ['Nome do Agente:'],
+      'Já teve problema com a concessionária de energia elétrica?': ['Já teve problema com essa concessionária de energia elétrica?']
+    };
 
     function canonicalHeaderName(header) {
       // Trim ALL trailing/leading spaces — the Google Form export adds trailing spaces to column headers
@@ -2004,7 +2055,7 @@
       const buildTableHtml = (rows, chunkIndex, totalChunks) => {
         const tableHeader = '<tr>' + pdfTableCols.map(col => `<th>${escapeHtml(col.label)}</th>`).join('') + '</tr>';
         const tableRows = rows.map(row => {
-          return '<tr>' + pdfTableCols.map(col => `<td>${renderPdfValue(row[col.key], col.kind)}</td>`).join('') + '</tr>';
+          return '<tr>' + pdfTableCols.map(col => `<td>${renderPdfValue(getFieldValue(row, col.key), col.kind)}</td>`).join('') + '</tr>';
         }).join('');
 
         const titleSuffix = totalChunks > 1 ? ` — Parte ${chunkIndex + 1} de ${totalChunks}` : '';
@@ -3047,7 +3098,8 @@ window.onload = function() {
           </tr>
         </thead>
         <tbody>
-          ${buildRow('Possui fornecimento de água e luz?', sim('Possui fornecimento de água e energia elétrica?'), nao('Possui fornecimento de água e energia elétrica?'))}
+          ${buildRow('Possui fornecimento de água?', sim('Possui fornecimento de água?'), nao('Possui fornecimento de água?'))}
+          ${buildRow('Possui energia elétrica em casa?', sim('Possui energia elétrica em casa?'), nao('Possui energia elétrica em casa?'))}
           ${buildRow('Já teve problema com fornecedora de água?', sim('Já teve problema com a concessionária?'), nao('Já teve problema com a concessionária?'))}
           ${buildRow('Já teve problema com prestadora de luz?', sim('Já teve problema com a concessionária de energia elétrica?'), nao('Já teve problema com a concessionária de energia elétrica?'))}
         </tbody>
@@ -3425,10 +3477,17 @@ window.onload = function() {
       const conc2Labels = ['Água', 'Energia Elétrica', 'Gás'];
       const conc2Sim = [
         countBy(filteredData, 'Já teve problema com a concessionária?', 'Sim'),
-        countBy(filteredData, 'Já teve problema com a concessionária de energia elétrica?', 'Sim'),
+        countBy(filteredData, 'Já teve problema com essa concessionária de energia elétrica?', 'Sim'),
         countBy(filteredData, 'Teve algum problema com o serviço de gás?', 'Sim'),
       ];
-      const conc2Nao = conc2Sim.map(s => total - s);
+      const baseAgua = filteredData.filter(row => hasService(row, 'agua')).length;
+      const baseEnergia = filteredData.filter(row => hasService(row, 'energia')).length;
+      const baseGas = filteredData.filter(row => hasService(row, 'gas')).length;
+      const conc2Nao = [
+        Math.max(baseAgua - conc2Sim[0], 0),
+        Math.max(baseEnergia - conc2Sim[1], 0),
+        Math.max(baseGas - conc2Sim[2], 0),
+      ];
 
       chartInstances['chartConcessionarias'] = new Chart(document.getElementById('chartConcessionarias'), {
         type: 'bar',
@@ -3581,7 +3640,7 @@ window.onload = function() {
       tbody.innerHTML = filteredData.map((row, idx) => {
         const fichaBtn = `<td style="text-align:center"><button class="btn-ficha" onclick="openCitizenModal(${idx})" title="Ver Ficha Completa">👁</button></td>`;
         return '<tr>' + fichaBtn + tableColumns.map(col => {
-          let val = row[col.key] || '';
+          let val = getFieldValue(row, col.key) || '';
           if (col.tag) {
             const cls = val === 'Sim' ? 'tag-sim' : 'tag-nao';
             val = val ? `<span class="tag ${cls}">${val}</span>` : '<span class="tag" style="background:#f1f5f9;color:#94a3b8">—</span>';
@@ -3589,7 +3648,7 @@ window.onload = function() {
             const cls = val === 'Concluída' ? 'tag-concluida' : val === 'Parcialmente concluída' ? 'tag-parcial' : 'tag-info';
             val = val ? `<span class="tag ${cls}">${val}</span>` : '';
           }
-          return `<td title="${row[col.key] || ''}">${val}</td>`;
+          return `<td title="${getFieldValue(row, col.key) || ''}">${val}</td>`;
         }).join('') + '</tr>';
       }).join('');
     }
@@ -3638,7 +3697,7 @@ window.onload = function() {
       const overlay = document.getElementById('citizenModalOverlay');
 
       // ── Helper ──────────────────────────────────────────────
-      const val = (key) => (row[key] || '').toString().trim();
+      const val = (key) => normalizeValue(getFieldValue(row, key));
       const esc = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
       function pill(v) {
@@ -3805,10 +3864,11 @@ window.onload = function() {
         <div class="citizen-section">
           <div class="citizen-section-title">⚡ Serviços Essenciais (Água e Luz)</div>
           <div class="citizen-qa-grid">
-            ${qa('Possui fornecimento de água e energia?', 'Possui fornecimento de água e energia elétrica?')}
+            ${qa('Possui fornecimento de água?', 'Possui fornecimento de água?')}
             ${qaPlain('Prestadora de água', 'Qual a concessionária de abastecimento de  água?')}
             ${qa('Problema com concessionária de água?', 'Já teve problema com a concessionária?')}
             ${qaText('Tipo de problema (água)', 'Descreva o tipo do problema?')}
+            ${qa('Possui energia elétrica em casa?', 'Possui energia elétrica em casa?')}
             ${qaPlain('Concessionária de energia', 'Qual a concessionária de energia elétrica?')}
             ${qa('Problema com concessionária de energia?', 'Já teve problema com essa concessionária de energia elétrica?')}
             ${qaText('Tipo de problema (energia)', 'Como foi esse seu problema com a concessionária?')}
@@ -3887,7 +3947,7 @@ window.onload = function() {
       const row = filteredData[rowIndex];
       if (!row) return;
 
-      const val = (key) => (row[key] || '').toString().trim();
+      const val = (key) => normalizeValue(getFieldValue(row, key));
       const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
       // personal
@@ -4224,11 +4284,13 @@ ${section('📱','Serviços de Telefonia e Internet',
 )}
 
 ${section('⚡','Serviços Essenciais (Água e Luz)',
-  qaRow('Possui fornecimento de água e energia?','Possui fornecimento de água e energia elétrica?') +
+  qaRow('Possui fornecimento de água?','Possui fornecimento de água?') +
   qaPlain('Concessionária de água','Qual a concessionária de abastecimento de  água?') +
   qaRow('Problema com concessionária de água?','Já teve problema com a concessionária?') +
   qaOpen('Tipo de problema (água)','Descreva o tipo do problema?') +
-  qaRow('Problema com concessionária de energia?','Já teve problema com a concessionária de energia elétrica?') +
+  qaRow('Possui energia elétrica em casa?','Possui energia elétrica em casa?') +
+  qaPlain('Concessionária de energia','Qual a concessionária de energia elétrica?') +
+  qaRow('Problema com concessionária de energia?','Já teve problema com essa concessionária de energia elétrica?') +
   qaOpen('Tipo de problema (energia)','Como foi esse seu problema com a concessionária?')
 )}
 
@@ -4331,6 +4393,7 @@ ${companies.length > 0 ? `
     </div>
   </div>
 
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
