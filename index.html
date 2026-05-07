@@ -1624,6 +1624,53 @@
     function normalizeValue(value) {
       return (value ?? '').toString().trim();
     }
+    function normalizeSearchText(value) {
+      return normalizeValue(value)
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+    function parseDateToISO(value) {
+      const raw = normalizeValue(value);
+      if (!raw) return '';
+
+      const onlyDate = raw.split(/[ T]/)[0];
+      if (!onlyDate) return '';
+
+      if (/^\d{4}[-/]\d{2}[-/]\d{2}$/.test(onlyDate)) {
+        return onlyDate.replace(/\//g, '-');
+      }
+
+      const brMatch = onlyDate.match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})$/);
+      if (brMatch) {
+        const [, dia, mes, ano] = brMatch;
+        return `${ano}-${mes}-${dia}`;
+      }
+
+      const parsed = new Date(raw);
+      if (Number.isNaN(parsed.getTime())) return '';
+      const ano = parsed.getFullYear();
+      const mes = String(parsed.getMonth() + 1).padStart(2, '0');
+      const dia = String(parsed.getDate()).padStart(2, '0');
+      return `${ano}-${mes}-${dia}`;
+    }
+    function buildSearchIndex(row) {
+      if (!row || typeof row !== 'object') return '';
+
+      const values = new Set();
+      Object.entries(row).forEach(([key, value]) => {
+        values.add(key);
+        values.add(value);
+      });
+
+      Object.keys(FIELD_ALIASES).forEach(key => {
+        values.add(getFieldValue(row, key));
+      });
+
+      return normalizeSearchText(Array.from(values).join(' '));
+    }
     function getFieldValue(row, key) {
       if (!row) return '';
 
@@ -1858,32 +1905,38 @@
     }
 
     function applyFilters() {
-      const agente = document.getElementById('filterAgente').value;
-      const sala = document.getElementById('filterSala').value;
-      const area = document.getElementById('filterArea').value;
-      const status = document.getElementById('filterStatus').value;
-      const busca = document.getElementById('filterBusca').value.toLowerCase();
-      const dataInicio = document.getElementById('filterDataInicio').value;
-      const dataFim = document.getElementById('filterDataFim').value;
+      const agente = normalizeValue(document.getElementById('filterAgente').value);
+      const sala = normalizeValue(document.getElementById('filterSala').value);
+      const area = normalizeValue(document.getElementById('filterArea').value);
+      const status = normalizeValue(document.getElementById('filterStatus').value);
+      const busca = normalizeSearchText(document.getElementById('filterBusca').value);
+      const termosBusca = busca.split(' ').filter(Boolean);
+      let dataInicio = normalizeValue(document.getElementById('filterDataInicio').value);
+      let dataFim = normalizeValue(document.getElementById('filterDataFim').value);
+
+      if (dataInicio && dataFim && dataInicio > dataFim) {
+        [dataInicio, dataFim] = [dataFim, dataInicio];
+      }
 
       filteredData = rawData.filter(d => {
-        if (agente && d['Nome do Agente'] !== agente) return false;
-        if (sala && d['Sala do Consumidor'] !== sala) return false;
-        if (area && d['Área de mapeamento'] !== area) return false;
-        if (status && d['Marque para concluir e enviar a pesquisa.'] !== status) return false;
-        if (busca) {
-          const searchable = Object.values(d).join(' ').toLowerCase();
-          if (!searchable.includes(busca)) return false;
+        if (agente && normalizeValue(getFieldValue(d, 'Nome do Agente')) !== agente) return false;
+        if (sala && normalizeValue(getFieldValue(d, 'Sala do Consumidor')) !== sala) return false;
+        if (area && normalizeValue(getFieldValue(d, 'Área de mapeamento')) !== area) return false;
+        if (status && normalizeValue(getFieldValue(d, 'Marque para concluir e enviar a pesquisa.')) !== status) return false;
+
+        if (termosBusca.length) {
+          const searchable = buildSearchIndex(d);
+          const correspondeBusca = termosBusca.every(termo => searchable.includes(termo));
+          if (!correspondeBusca) return false;
         }
+
         if (dataInicio || dataFim) {
-          const dataPesquisa = d['Data da pesquisa'];
+          const dataPesquisa = parseDateToISO(getFieldValue(d, 'Data da pesquisa'));
           if (!dataPesquisa) return false;
-          const dt = new Date(dataPesquisa.replace(/\//g, '-'));
-          if (isNaN(dt.getTime())) return false;
-          const dtStr = dt.toISOString().split('T')[0];
-          if (dataInicio && dtStr < dataInicio) return false;
-          if (dataFim && dtStr > dataFim) return false;
+          if (dataInicio && dataPesquisa < dataInicio) return false;
+          if (dataFim && dataPesquisa > dataFim) return false;
         }
+
         return true;
       });
 
@@ -1907,7 +1960,9 @@
 
     ['filterAgente','filterSala','filterArea','filterStatus','filterBusca','filterDataInicio','filterDataFim'].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.addEventListener('input', applyFilters);
+      if (!el) return;
+      el.addEventListener('input', applyFilters);
+      el.addEventListener('change', applyFilters);
     });
 
     // ── Collapsible Filters ───────────────────────────────────────
@@ -4393,6 +4448,7 @@ ${companies.length > 0 ? `
     </div>
   </div>
 
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
